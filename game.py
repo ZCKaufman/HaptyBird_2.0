@@ -8,6 +8,7 @@ from bot import HaptyBot
 from player import Player
 from gate import Gate
 import datetime
+import time
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -19,7 +20,7 @@ def init_params():
     params['first_layer_size'] = 1    # Neurons in the first layer
     params['second_layer_size'] = 20   # Neurons in the second layer
     params['third_layer_size'] = 50    # Neurons in the third layer
-    params['total_gates'] = 180        
+    params['total_gates'] = 100        
     params['memory_size'] = 2500
     params['batch_size'] = 1000
     params['train'] = True # Do not change, use arguments in terminal to train
@@ -30,7 +31,7 @@ def init_params():
     params["display_scale"] = 3
     params["game_width"] = params["game_x_axis"] * params["display_scale"]
     params["game_height"] = params["game_y_axis"] * params["display_scale"]
-    params["deploy_epsilon"] = 0.01
+    params["deploy_epsilon"] = 0.05
     params["cursor_y_axis"] = params["game_height"] - (5 * params["display_scale"])
     params["bot_start_x"] = 100
     params["player_start_x"] = 200
@@ -60,6 +61,8 @@ def run_games(params): # Runs the game
     player_scores = []
     player_score = sum(player_scores)
 
+    initial_action = [1, 0, 0] # Stay still as initial action
+
     while(gates_passed < params["total_gates"]):
         # Check if the game has been ended by user
         for event in pygame.event.get():
@@ -72,7 +75,13 @@ def run_games(params): # Runs the game
         gate = Gate(params, game) 
 
         # Begin game and display (if applicable)
-        #game.init_state(player, bot, gate)
+        init_state = game.get_state(player, bot, gate)
+        init_move = player.move(params, init_state)
+        init_reward = bot.get_reward(init_move)
+        secondary_state = game.get_state(player, bot, gate)
+        bot.remember(init_state, initial_action, init_reward, secondary_state, False)
+        bot.train_LT_memory()
+
         if params["display"]:
             game.render(player, bot, gate)
 
@@ -106,8 +115,8 @@ def run_games(params): # Runs the game
             new_state = game.get_state(player, bot, gate)
             # Set scores and/or rewards as relevant
             if(params["train"]):
-                reward = bot.train_reward(bot_hit)
-                bot.train_short_memory(bot.memory)
+                reward = bot.get_reward(bot_hit)
+                bot.train_ST_memory(state, bot_move, reward, new_state, bot_hit[0])
                 bot.remember(state, bot_move, reward, new_state, bot_hit[0])
             if(player_hit[0] or bot_hit[0]):
                 score(player, player_hit)
@@ -119,7 +128,7 @@ def run_games(params): # Runs the game
                 pygame.time.wait(params["speed"]) # Slows down game for viewing
 
             steps += 1
-        print(f'Game {games_counter}\Bot: {bot.score}\Player: {player.score}\Steps: {steps}')
+        print(f'Game {games_counter}\tBot: {bot.score}\tPlayer: {player.score}\tSteps: {steps}')
     model_weights = bot.state_dict()
     torch.save(model_weights, params["weights_path"])
     print("Weights saved")
@@ -140,7 +149,7 @@ class Game:
         self.game_height = height
         self.surface = pygame.display.set_mode((width, height))
         self.background = pygame.image.load("imgs/background.jpg")
-    
+        
     def render(self, player, bot, gate):
         # UI display
         self.surface = pygame.display.set_mode((self.game_width, self.game_height)) # There has GOT to be a better way
@@ -192,12 +201,14 @@ class Game:
         return np.asarray(state)
 
 if __name__ == '__main__':
+    start_time = time.time()
+    print("Time started")
     # Set options to activate or deactivate the game view, and its speed
     pygame.font.init()
     parser = argparse.ArgumentParser()
     params = init_params()
-    parser.add_argument("--display", nargs='?', type=distutils.util.strtobool, default=True)
-    parser.add_argument("--speed", nargs='?', type=int, default=30)
+    parser.add_argument("--display", nargs='?', type=distutils.util.strtobool, default=False)
+    parser.add_argument("--speed", nargs='?', type=int, default=0)
     args = parser.parse_args()
     print("Args", args)
     params['display'] = args.display
@@ -211,3 +222,7 @@ if __name__ == '__main__':
         params['train'] = False
         params['load_weights'] = True
         run_games(params)
+
+    end_time = time.time()
+    print("Time ended")
+    print("Total time:", end_time - start_time)

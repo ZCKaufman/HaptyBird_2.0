@@ -6,6 +6,7 @@ import torch.nn.functional as F
 import numpy as np
 import pandas as pd
 import random
+import collections
 from random import randint
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -26,8 +27,8 @@ class HaptyBot(torch.nn.Module):
         self.first_layer = params['first_layer_size']
         self.second_layer = params['second_layer_size']
         self.third_layer = params['third_layer_size']
-        #self.memory = collections.deque(maxlen=params['memory_size']) #Replace with list?
-        self.memory = np.empty(params["memory_size"])
+        self.memory = collections.deque(maxlen=params['memory_size']) #Replace with list?
+        #self.memory = np.empty(params["memory_size"])
         self.optimizer = None
         # Deployment variables
         self.score = 0
@@ -55,7 +56,7 @@ class HaptyBot(torch.nn.Module):
 
     # Training methods
     # This is NOT to be confused with score() which is part of the game process, reward() is part of training
-    def train_reward(self, hit): 
+    def get_reward(self, hit): 
         self.reward = 0
         if hit[0]:
             if(hit[1] == 1):
@@ -72,13 +73,13 @@ class HaptyBot(torch.nn.Module):
         if random.uniform(0, 1) < self.epsilon:
                 move = np.eye(3)[randint(0,2)]
         else:
-            print("Made a prediction!")
+            #print("Made a prediction!")
             # predict action based on the old state
             with torch.no_grad():
                 prev_state_tensor = torch.tensor(state, dtype=torch.float32).to(DEVICE)
                 prediction = self.forward(prev_state_tensor)
                 move = np.eye(3)[np.argmax(prediction.detach().cpu().numpy()[0])]
-            print(move, prediction)
+            #print(move, prediction)
 
         if np.array_equal(move, [1, 0, 0]) or self.x < 0 or self.x > params["game_height"]: # stay
             #print("Stay")
@@ -96,14 +97,12 @@ class HaptyBot(torch.nn.Module):
         return move
 
     def remember(self, state, action, reward, next_state, done):
-        np.append(self.memory, (state, action, reward, next_state, done))
-        #self.memory.add((state, action, reward, next_state, done))
+        #np.append(self.memory, [state, action, reward, next_state, done])
+        self.memory.append((state, action, reward, next_state, done))
         return
-
-    def train_short_memory(self, memory):
-        #print(type(state), type(action), type(reward), type(next_state), type(done), type(self.memory))
-        print(memory)
-        for state, action, reward, next_state, done, in memory:
+    
+    def train_LT_memory(self):
+        for state, action, reward, next_state, done, in self.memory:
             self.train()
             torch.set_grad_enabled(True)
             target = reward
@@ -119,5 +118,22 @@ class HaptyBot(torch.nn.Module):
             loss = F.mse_loss(output, target_f)
             loss.backward()
             self.optimizer.step()
+
+    def train_ST_memory(self, state, action, reward, next_state, done):
+        self.train()
+        torch.set_grad_enabled(True)
+        target = reward
+        next_state_tensor = torch.tensor(next_state.reshape((1, 14)), dtype=torch.float32).to(DEVICE)
+        state_tensor = torch.tensor(state.reshape((1, 14)), dtype=torch.float32, requires_grad=True).to(DEVICE)
+        if not done:
+            target = reward + self.gamma * torch.max(self.forward(next_state_tensor[0]))
+        output = self.forward(state_tensor)
+        target_f = output.clone()
+        target_f[0][np.argmax(action)] = target
+        target_f.detach()
+        self.optimizer.zero_grad()
+        loss = F.mse_loss(output, target_f)
+        loss.backward()
+        self.optimizer.step()
 
     

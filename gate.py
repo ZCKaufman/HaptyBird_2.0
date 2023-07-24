@@ -106,7 +106,7 @@ class Gate:
     def update_y(self, params, player, bot, game):
         player_output = [False, -2] # Returns a True if gate hit player, a 1 if pos gate, 0 if neg gate, -1 if wall
         bot_output = [False, -2]
-        if self.y * params["display_scale"] == player.y:
+        if self.y * params["display_scale"] >= player.y:
             player_output[0] = True
             if(player.x in self.pos_gate[0]):
                 player_output[1] = 1
@@ -122,9 +122,10 @@ class Gate:
                 bot_output[1] = 0
             else:
                 bot_output[1] = -1
-
+            #print("Hit a gate", player_output, bot_output)
             return player_output, bot_output
         else:
+            #print("Ys:", self.y, self.y * params["display_scale"], player.y)
             self.y += 1
             self.display(params, game)
             return player_output, bot_output
