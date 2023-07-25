@@ -10,6 +10,7 @@ import collections
 from random import randint
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+DEVICE = "cpu"
 
 class HaptyBot(torch.nn.Module):
     def __init__(self, params):
@@ -40,7 +41,7 @@ class HaptyBot(torch.nn.Module):
         self.load_weights = params['load_weights']
 
         # Create network
-        self.f1 = nn.Linear(14, self.first_layer)
+        self.f1 = nn.Linear(7, self.first_layer)
         self.f2 = nn.Linear(self.first_layer, self.second_layer)
         self.f3 = nn.Linear(self.second_layer, self.third_layer)
         self.f4 = nn.Linear(self.third_layer, 3)
@@ -106,8 +107,8 @@ class HaptyBot(torch.nn.Module):
             self.train()
             torch.set_grad_enabled(True)
             target = reward
-            next_state_tensor = torch.tensor(next_state.reshape((1, 14)), dtype=torch.float32).to(DEVICE)
-            state_tensor = torch.tensor(state.reshape((1, 14)), dtype=torch.float32, requires_grad=True).to(DEVICE)
+            next_state_tensor = torch.tensor(next_state.reshape((1, 7)), dtype=torch.float32).to(DEVICE)
+            state_tensor = torch.tensor(state.reshape((1, 7)), dtype=torch.float32, requires_grad=True).to(DEVICE)
             if not done:
                 target = reward + self.gamma * torch.max(self.forward(next_state_tensor[0]))
             output = self.forward(state_tensor)
@@ -123,8 +124,8 @@ class HaptyBot(torch.nn.Module):
         self.train()
         torch.set_grad_enabled(True)
         target = reward
-        next_state_tensor = torch.tensor(next_state.reshape((1, 14)), dtype=torch.float32).to(DEVICE)
-        state_tensor = torch.tensor(state.reshape((1, 14)), dtype=torch.float32, requires_grad=True).to(DEVICE)
+        next_state_tensor = torch.tensor(next_state.reshape((1, 7)), dtype=torch.float32).to(DEVICE)
+        state_tensor = torch.tensor(state.reshape((1, 7)), dtype=torch.float32, requires_grad=True).to(DEVICE)
         if not done:
             target = reward + self.gamma * torch.max(self.forward(next_state_tensor[0]))
         output = self.forward(state_tensor)

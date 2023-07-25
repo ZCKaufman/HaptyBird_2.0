@@ -11,16 +11,17 @@ import datetime
 import time
 
 DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
+DEVICE = "cpu"
 
 def init_params():
     params = dict()
     # Bot NN parameters (adapted largely from https://github.com/maurock/snake-ga/tree/master)
-    params['epsilon_decay'] = 1/100
+    params['epsilon_decay'] = 1/20
     params['learning_rate'] = 0.00013629
     params['first_layer_size'] = 1    # Neurons in the first layer
     params['second_layer_size'] = 20   # Neurons in the second layer
     params['third_layer_size'] = 50    # Neurons in the third layer
-    params['total_gates'] = 100        
+    params['total_games'] = 150        
     params['memory_size'] = 2500
     params['batch_size'] = 1000
     params['train'] = True # Do not change, use arguments in terminal to train
@@ -50,6 +51,7 @@ def init_params():
 def run_games(params): # Runs the game
     pygame.init()
     bot = HaptyBot(params)
+    bot.to(DEVICE)
     player = HaptyBot(params) 
     bot.optimizer = opt.Adam(bot.parameters(), weight_decay=0, lr=params['learning_rate'])
     # Training stuff
@@ -63,7 +65,7 @@ def run_games(params): # Runs the game
 
     initial_action = [1, 0, 0] # Stay still as initial action
 
-    while(gates_passed < params["total_gates"]):
+    while(games_counter < params["total_games"]):
         # Check if the game has been ended by user
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -73,6 +75,7 @@ def run_games(params): # Runs the game
         game = Game(params["game_width"], params["game_height"]) # Width, Height
         #player = Player(params) 
         gate = Gate(params, game) 
+        gates_passed = 0 # Reset number of gates every game
 
         # Begin game and display (if applicable)
         init_state = game.get_state(player, bot, gate)
@@ -88,14 +91,14 @@ def run_games(params): # Runs the game
         games_counter += 1    
         # Run the game until a gate has been hit
         steps = 0
-        while(steps < 1000):
+        while(gates_passed % 5 != 0 or gates_passed == 0):
             # Reset crash records
             player.crash = False
             bot.crash = False
 
             # If training, begin with high epsilon and work up, else use param epsilon
             if params["train"]:
-                bot.epsilon = 1 - (gates_passed * params["epsilon_decay"])
+                bot.epsilon = 1 - (games_counter * params["epsilon_decay"]) + params["deploy_epsilon"]
             else:
                 bot.epsilon = params["deploy_epsilon"]
 
@@ -176,7 +179,7 @@ class Game:
     def get_state(self, player, bot, gate):
         # This state is used to train the bot, if modified it will break things
         pos_gate = gate.pos_gate[0]
-        state = [
+        '''state = [
             # Player state stats
             player.x not in pos_gate, # Is the player in danger
             player.x < pos_gate[0], # Gate right
@@ -186,6 +189,17 @@ class Game:
             player.x_change == 1,  # move right
             player.x_change == 0, # Stay still
 
+            # Bot state stats
+            bot.x not in pos_gate, # Is the player in danger
+            bot.x < pos_gate[0], # Gate right
+            bot.x > pos_gate[-1], # Gate left
+            bot.x in pos_gate, # In gate range
+            bot.x_change == -1,  # move left
+            bot.x_change == 1,  # move right
+            bot.x_change == 0 # Stay still
+        ]'''
+
+        state = [
             # Bot state stats
             bot.x not in pos_gate, # Is the player in danger
             bot.x < pos_gate[0], # Gate right
