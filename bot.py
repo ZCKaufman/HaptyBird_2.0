@@ -9,7 +9,6 @@ import random
 import collections
 from random import randint
 
-DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 DEVICE = "cpu"
 
 class HaptyBot(torch.nn.Module):
@@ -20,8 +19,7 @@ class HaptyBot(torch.nn.Module):
         self.gamma = 0.9
         self.dataframe = pd.DataFrame()
         self.short_memory = np.array([])
-        self.agent_target = 1
-        self.agent_predict = 0
+        self.prediction_count = 0
         self.learning_rate = params['learning_rate']        
         self.epsilon = 1
         self.actual = []
@@ -57,7 +55,7 @@ class HaptyBot(torch.nn.Module):
 
     # Training methods
     # This is NOT to be confused with score() which is part of the game process, reward() is part of training
-    def get_reward(self, hit): 
+    def get_reward(self, hit, state): 
         self.reward = 0
         if hit[0]:
             if(hit[1] == 1):
@@ -67,6 +65,17 @@ class HaptyBot(torch.nn.Module):
             elif(hit[1] == -1):
                 self.reward = -30
             return self.reward
+        else:
+            if state[1] and state[-2]: # Gate is right and bot moved right
+                self.reward = 0.1
+            elif state[2] and state[-3]: # Gate is left and bot moved left
+                self.reward = 0.1
+            elif state[1] and (state[-3] or state[-1]): # Gate is right but bot moved left or stayed still
+                self.reward = -0.1
+            elif state[2] and (state[-2] or state[-1]): # Gate is left but bot moved right or stayed still
+                self.reward = -0.1
+            elif state[3]: # Bot is within gate range
+                self.reward = 0.2
         return self.reward
     
     def move(self, params, state):
@@ -74,8 +83,7 @@ class HaptyBot(torch.nn.Module):
         if random.uniform(0, 1) < self.epsilon:
                 move = np.eye(3)[randint(0,2)]
         else:
-            #print("Made a prediction!")
-            # predict action based on the old state
+            self.prediction_count += 1
             with torch.no_grad():
                 prev_state_tensor = torch.tensor(state, dtype=torch.float32).to(DEVICE)
                 prediction = self.forward(prev_state_tensor)

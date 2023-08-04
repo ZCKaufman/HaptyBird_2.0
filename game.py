@@ -10,18 +10,20 @@ from gate import Gate
 import datetime
 import time
 
-DEVICE = 'cuda' if torch.cuda.is_available() else 'cpu'
 DEVICE = "cpu"
+
+# 500 Games, score -5414, decay 1/20, LR 0.01
 
 def init_params():
     params = dict()
     # Bot NN parameters (adapted largely from https://github.com/maurock/snake-ga/tree/master)
     params['epsilon_decay'] = 1/20
-    params['learning_rate'] = 0.00013629
+    #params['learning_rate'] = 0.00013629 # Try increasing the learning rate
+    params['learning_rate'] = 0.01
     params['first_layer_size'] = 1    # Neurons in the first layer
     params['second_layer_size'] = 20   # Neurons in the second layer
     params['third_layer_size'] = 50    # Neurons in the third layer
-    params['total_games'] = 150        
+    params['total_games'] = 500        
     params['memory_size'] = 2500
     params['batch_size'] = 1000
     params['train'] = True # Do not change, use arguments in terminal to train
@@ -63,6 +65,9 @@ def run_games(params): # Runs the game
     player_scores = []
     player_score = sum(player_scores)
 
+    prev_acc = -10.82
+    curr_acc = 0
+
     initial_action = [1, 0, 0] # Stay still as initial action
 
     while(games_counter < params["total_games"]):
@@ -80,7 +85,7 @@ def run_games(params): # Runs the game
         # Begin game and display (if applicable)
         init_state = game.get_state(player, bot, gate)
         init_move = player.move(params, init_state)
-        init_reward = bot.get_reward(init_move)
+        init_reward = bot.get_reward(init_move, init_state)
         secondary_state = game.get_state(player, bot, gate)
         bot.remember(init_state, initial_action, init_reward, secondary_state, False)
         bot.train_LT_memory()
@@ -88,7 +93,7 @@ def run_games(params): # Runs the game
         if params["display"]:
             game.render(player, bot, gate)
 
-        games_counter += 1    
+        games_counter += 1 
         # Run the game until a gate has been hit
         steps = 0
         while(gates_passed % 5 != 0 or gates_passed == 0):
@@ -98,7 +103,7 @@ def run_games(params): # Runs the game
 
             # If training, begin with high epsilon and work up, else use param epsilon
             if params["train"]:
-                bot.epsilon = 1 - (games_counter * params["epsilon_decay"]) + params["deploy_epsilon"]
+                bot.epsilon = max(0, (1 - (games_counter * params["epsilon_decay"]))) + params["deploy_epsilon"]
             else:
                 bot.epsilon = params["deploy_epsilon"]
 
@@ -118,12 +123,12 @@ def run_games(params): # Runs the game
             new_state = game.get_state(player, bot, gate)
             # Set scores and/or rewards as relevant
             if(params["train"]):
-                reward = bot.get_reward(bot_hit)
+                reward = bot.get_reward(bot_hit, new_state)
                 bot.train_ST_memory(state, bot_move, reward, new_state, bot_hit[0])
                 bot.remember(state, bot_move, reward, new_state, bot_hit[0])
             if(player_hit[0] or bot_hit[0]):
-                score(player, player_hit)
-                score(bot, bot_hit)
+                player_scores.append(score(player, player_hit))
+                bot_scores.append(score(bot, bot_hit))
                 #break
 
             if params['display']:
@@ -131,19 +136,28 @@ def run_games(params): # Runs the game
                 pygame.time.wait(params["speed"]) # Slows down game for viewing
 
             steps += 1
-        print(f'Game {games_counter}\tBot: {bot.score}\tPlayer: {player.score}\tSteps: {steps}')
-    model_weights = bot.state_dict()
-    torch.save(model_weights, params["weights_path"])
-    print("Weights saved")
+        curr_acc = bot.score / games_counter
+        print(f'Game {games_counter}\tBot: {sum(bot_scores[-5:])}, {bot.score}\tPlayer: {sum(player_scores[-5:])}, {player.score}\tEpsilon: {round(bot.epsilon, 2)}\tAccurracy: {curr_acc}')
+    if params['train'] and curr_acc > prev_acc:
+        model_weights = bot.state_dict()
+        torch.save(model_weights, params["weights_path"])
+        print(f'Weights saved, finished with higher accuracy\nCurrent: {curr_acc}\nPrevious Best: {prev_acc}')
+    elif params['deploy']:
+        print("Finished testing.")
+    else:
+        print(f'Finished with lower accuracy\nCurrent: {curr_acc}\nBest: {prev_acc}')
     return
 
 def score(user, gate_interact):
     if(gate_interact[1] == 1):
         user.score += 1
+        return 1
     elif(gate_interact[1] == 0):
         user.score -= 1
+        return -1
     elif(gate_interact[1] == -1):
         user.score -= 3
+        return -3
 
 class Game:
     def __init__(self, width, height):
@@ -155,7 +169,8 @@ class Game:
         
     def render(self, player, bot, gate):
         # UI display
-        self.surface = pygame.display.set_mode((self.game_width, self.game_height)) # There has GOT to be a better way
+        #self.surface = pygame.display.set_mode((self.game_width, self.game_height)) # There has GOT to be a better way
+        self.surface.fill("black")
         font = pygame.font.SysFont("Segoe UI", 20)
         font_bold = pygame.font.SysFont("Segoe UI", 20, True)
         player_score = font_bold.render("PLAYER 1:", True, (255,255,255))

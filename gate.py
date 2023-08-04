@@ -26,14 +26,23 @@ class Gate:
         gate_loc = np.where(self.gate_arr != 0)
         gate_loc = gate_loc[0]
         # Generate negative gate
-        if(gate_loc[0] >= (params["gate_cushion"] + params["gate_size"] + params["gate_min_distance"]) * params["display_scale"]):
-            self.n_gate_start = random.randint(((params["gate_cushion"] + params["gate_size"]) * params["display_scale"]), gate_loc[0] - (params["gate_min_distance"] * params["display_scale"]))
-            # Changes negative gate vlaues to -1
-            self.gate_arr[self.n_gate_start - (params["gate_size"] * params["display_scale"]):self.n_gate_start] = -1
-        else:
-            self.n_gate_start = random.randint(gate_loc[-1] + (params["gate_min_distance"] * params["display_scale"]), params["game_width"] - (params["gate_cushion"] * params["display_scale"]))
-            self.gate_arr[self.n_gate_start:self.n_gate_start + (params["gate_size"] * params["display_scale"])] = -1
-
+        left_right = random.randint(1, 10) # Determines if the neg gate will attempt to generate left or right of the pos gate
+        if(left_right < 5): # LEFT
+            if(gate_loc[0] >= (params["gate_cushion"] + params["gate_size"] + params["gate_min_distance"]) * params["display_scale"]): # Expand right
+                self.n_gate_start = random.randint(((params["gate_cushion"] + params["gate_size"]) * params["display_scale"]), gate_loc[0] - (params["gate_min_distance"] * params["display_scale"]))
+                # Changes negative gate vlaues to -1
+                self.gate_arr[self.n_gate_start - (params["gate_size"] * params["display_scale"]):self.n_gate_start] = -1
+            else:
+                self.n_gate_start = random.randint(gate_loc[-1] + (params["gate_min_distance"] * params["display_scale"]), params["game_width"] - (params["gate_cushion"] * params["display_scale"]))
+                self.gate_arr[self.n_gate_start:self.n_gate_start + (params["gate_size"] * params["display_scale"])] = -1
+        else: # RIGHT
+            if(gate_loc[-1] <= (params["game_width"] - (params["gate_cushion"] + params["gate_size"] + params["gate_min_distance"]) * params["display_scale"])): # Expand right
+                self.n_gate_start = random.randint((gate_loc[-1] + (params["gate_min_distance"] * params["display_scale"])), params["game_width"] - (params["gate_cushion"] * params["display_scale"]))
+                # Changes negative gate vlaues to -1
+                self.gate_arr[self.n_gate_start: self.n_gate_start + (params["gate_size"] * params["display_scale"])] = -1
+            else:
+                self.n_gate_start = random.randint(((params["gate_cushion"] + params["gate_size"]) * params["display_scale"]), gate_loc[0] - (params["gate_min_distance"] * params["display_scale"]))
+                self.gate_arr[self.n_gate_start - (params["gate_size"] * params["display_scale"]):self.n_gate_start] = -1
         self.neg_gate = np.where(self.gate_arr < 0)
         self.pos_gate = np.where(self.gate_arr > 0)
 
