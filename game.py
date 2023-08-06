@@ -4,7 +4,6 @@ import torch.optim as opt
 import numpy as np
 import argparse
 import distutils.util
-import seaborn as sb
 import matplotlib.pyplot as plt
 from bot import HaptyBot
 from player import Player
@@ -47,9 +46,10 @@ def objective(trial, params): # Runs the game
     ### OPTUNA HYPERPARAMETERS ###
     trial.should_prune()
     bot.learning_rate = trial.suggest_float("lr", 1e-5, 1e-1, log=True)
-    bot.optimizer = trial.suggest_categorical("optimizer", ["Adam", "RMSprop", "SGD"])
+    optimizer = trial.suggest_categorical("optimizer", ["Adam", "RMSprop", "SGD"])
     bot.epsilon_decay = trial.suggest_float("decay", 1e-3, 5e-1, log=True)
-    bot.deploy_epsilon = trial.suggest_float("epsilon", 0.5, 1e-2)
+    bot.deploy_epsilon = trial.suggest_float("epsilon", 1e-2, 0.5)
+    bot.optimizer = getattr(opt, optimizer)(bot.parameters(), lr=bot.learning_rate)
 
     # Training stuff
     gates_passed = 0
@@ -95,7 +95,7 @@ def objective(trial, params): # Runs the game
 
             # If training, begin with high epsilon and work up, else use param epsilon
             if bot.test == False:
-                bot.epsilon = max(0, (1 - (games_counter * bot.epsilon_decay))) + bot.deploy_epsilon
+                bot.epsilon = max(0, (1 - (games_counter * bot.epsilon_decay)))
             else:
                 bot.epsilon = bot.deploy_epsilon
 
