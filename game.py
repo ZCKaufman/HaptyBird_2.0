@@ -19,7 +19,7 @@ DEVICE = "cpu"
 def init_params():
     params = dict()
     # Bot NN parameters (adapted largely from https://github.com/maurock/snake-ga/tree/master)
-    params['total_games'] = 500
+    params['total_games'] = 5
     # Game parameters
     params["game_x_axis"] = 180
     params["game_y_axis"] = 270
@@ -34,7 +34,7 @@ def init_params():
     # Data parameters
     params['plot_score'] = True
     params["attempt"] = 8
-    params["target_acc"] = -10
+    params["target_acc"] = -15
     return params
 
 def objective(trial, params): # Runs the game
@@ -73,6 +73,8 @@ def objective(trial, params): # Runs the game
         #player = Player(params) 
         gate = Gate(params, game) 
         gates_passed = 0 # Reset number of gates every game
+        if(trial.number > 1):
+            params["target_acc"] = study.best_trial.value
 
         # Begin game and display (if applicable)
         init_state = game.get_state(player, bot, gate)
@@ -132,11 +134,11 @@ def objective(trial, params): # Runs the game
         acc_scores.append(curr_acc)
         game_scores.append(sum(bot_scores[-5:]))
         print(f'Game {games_counter}\tBot: {sum(bot_scores[-5:])}, {bot.score}\tPlayer: {sum(player_scores[-5:])}, {player.score}\tEpsilon: {round(bot.epsilon, 2)}\tAccurracy: {round(curr_acc, 4)}')
-    plot_scores(game_scores, bot_scores, acc_scores, params["attempt"])
+    plot_scores(game_scores, bot_scores, acc_scores, str(trial.number))
     if bot.test == False and curr_acc > params["target_acc"]:
         model_weights = bot.state_dict()
         torch.save(model_weights, bot.weights_path)
-        print(f'Weights saved, finished with higher accuracy\nCurrent: {curr_acc}\nPrevious Best: {params["target_acc"]}')
+        print(f'Weights saved, finished with higher accuracy\nCurrent: {curr_acc}\nTarget: {params["target_acc"]}')
     elif bot.test:
         print("Finished testing.")
     else:
@@ -248,9 +250,9 @@ if __name__ == '__main__':
     ####################
     ### OPTUNA SETUP ###
     ####################
-    study = optuna.create_study(direction="maximize")  # 'maximize' because objective function is returning accuracy
+    study = optuna.create_study(study_name=str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")), direction="maximize")  # 'maximize' because objective function is returning accuracy
     #study = optuna.create_study(direction="minimize")  # 'minimize' because objective function is returning loss
-    study.optimize(lambda trial: objective(trial, params), n_trials=500)
+    study.optimize(lambda trial: objective(trial, params), n_trials=5)
 
     pruned_trials = [t for t in study.trials if t.state == optuna.trial.TrialState.PRUNED]
     complete_trials = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
