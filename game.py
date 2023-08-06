@@ -33,7 +33,7 @@ def init_params():
     params["gate_cushion"] = 1
     # Data parameters
     params['plot_score'] = True
-    params["attempt"] = 8
+    params["attempt"] = 10
     params["target_acc"] = -10
     return params
 

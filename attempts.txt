@@ -9,4 +9,5 @@ Attempt 5, attempt 4 but with 500 more steps: -11. No improvement, didn't flatte
 Attempt 6, Switch it up, have a negative hit reward but get rid of positive, loaded weights, 500 games: Capped out at -15 around game 250, did not save
 Attempt 7, Default params, now in the correct files, just a test, 250 games: Stuck at -15 around game 207, ending acc: -12.272
 Attempt 8, Expand memory size param to 100000: Didn't work, ended up stalling
-Attempt 9, Expand memory size param to 10000: Ended with 11.69 accuracy, not saved
+Attempt 9, Expand memory size param to 3000: Ended with 11.69 accuracy, not saved
+Attempt 10, Expanded memory to 10000 and ran on Carbonate, : 

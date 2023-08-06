@@ -18,7 +18,7 @@ class HaptyBot(torch.nn.Module):
         # Training Parameters
         self.test = False
         self.learning_rate = 0.03
-        self.memory_size = 3000
+        self.memory_size = 10000
         self.first_layer = 10
         self.second_layer = 8
         self.third_layer = 6
