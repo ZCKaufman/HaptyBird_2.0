@@ -1,0 +1,9 @@
+Default Parameters:
+Decay: 1/20     LR: 0.03        Layers: I:7, 10, 8, 6, O:3      Rewards: 10 for gate, -10 for neggate, -30 for wall, 0.1 for movement
+
+Attempt 1, Default, 250 games, no weights: -11.952, saved, plot1.png
+Attempt 2, Decay 1/50, 250 games, loaded weights: Stuck in minimum on Game 11 and beyond, quit halfway through
+Attempt 3, Movement reward = 1, loaded weights: Stuck in minimum on Game 132 and beyond, finished with -13.208
+Attempt 4, Removed negative hit rewards and added correct range reward of 2, loaded weights: -11.664, saved, plot4
+Attempt 5, attempt 4 but with 500 more steps: -11. No improvement, didn't flatten out at -15 but didn't get away from -15 either, accidentally overrote plot4.png
+Attempt 6, Switch it up, have a negative hit reward but get rid of positive, loaded weights, 500 games:

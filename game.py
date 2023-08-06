@@ -4,6 +4,8 @@ import torch.optim as opt
 import numpy as np
 import argparse
 import distutils.util
+import seaborn as sb
+import matplotlib.pyplot as plt
 from bot import HaptyBot
 from player import Player
 from gate import Gate
@@ -19,11 +21,11 @@ def init_params():
     # Bot NN parameters (adapted largely from https://github.com/maurock/snake-ga/tree/master)
     params['epsilon_decay'] = 1/20
     #params['learning_rate'] = 0.00013629 # Try increasing the learning rate
-    params['learning_rate'] = 0.01
-    params['first_layer_size'] = 1    # Neurons in the first layer
-    params['second_layer_size'] = 20   # Neurons in the second layer
-    params['third_layer_size'] = 50    # Neurons in the third layer
-    params['total_games'] = 500        
+    params['learning_rate'] = 0.03
+    params['first_layer_size'] = 10    # Neurons in the first layer
+    params['second_layer_size'] = 8   # Neurons in the second layer
+    params['third_layer_size'] = 6    # Neurons in the third layer
+    params['total_games'] = 500       
     params['memory_size'] = 2500
     params['batch_size'] = 1000
     params['train'] = True # Do not change, use arguments in terminal to train
@@ -61,11 +63,11 @@ def run_games(params): # Runs the game
     gates_passed = 0
     games_counter = 0
     bot_scores = []
-    bot_score = sum(bot_scores)
+    game_scores = []
+    acc_scores = []
     player_scores = []
-    player_score = sum(player_scores)
 
-    prev_acc = -10.82
+    prev_acc = -11.664
     curr_acc = 0
 
     initial_action = [1, 0, 0] # Stay still as initial action
@@ -137,7 +139,10 @@ def run_games(params): # Runs the game
 
             steps += 1
         curr_acc = bot.score / games_counter
+        acc_scores.append(curr_acc)
+        game_scores.append(sum(bot_scores[-5:]))
         print(f'Game {games_counter}\tBot: {sum(bot_scores[-5:])}, {bot.score}\tPlayer: {sum(player_scores[-5:])}, {player.score}\tEpsilon: {round(bot.epsilon, 2)}\tAccurracy: {curr_acc}')
+    plot_scores(game_scores, bot_scores, acc_scores)
     if params['train'] and curr_acc > prev_acc:
         model_weights = bot.state_dict()
         torch.save(model_weights, params["weights_path"])
@@ -158,6 +163,13 @@ def score(user, gate_interact):
     elif(gate_interact[1] == -1):
         user.score -= 3
         return -3
+    
+def plot_scores(game_scores, bot_scores, acc_scores):
+    x = len(bot_scores)
+
+    plt.plot(game_scores, "bo")
+    plt.plot(acc_scores)
+    plt.savefig("plots/plot6.png")
 
 class Game:
     def __init__(self, width, height):
@@ -244,7 +256,7 @@ if __name__ == '__main__':
     params['speed'] = args.speed
     if params['train']:
         print("Training...")
-        params['load_weights'] = True   
+        params['load_weights'] = False   
         run_games(params)
     if params['deploy']:
         print("Testing...")

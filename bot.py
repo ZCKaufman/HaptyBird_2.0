@@ -58,24 +58,24 @@ class HaptyBot(torch.nn.Module):
     def get_reward(self, hit, state): 
         self.reward = 0
         if hit[0]:
-            if(hit[1] == 1):
+            '''if(hit[1] == 1):
                 self.reward = 10
             elif(hit[1] == 0):
-                self.reward = -10
-            elif(hit[1] == -1):
+                self.reward = -10'''
+            if(hit[1] == -1):
                 self.reward = -30
             return self.reward
         else:
             if state[1] and state[-2]: # Gate is right and bot moved right
-                self.reward = 0.1
+                self.reward = 1
             elif state[2] and state[-3]: # Gate is left and bot moved left
-                self.reward = 0.1
+                self.reward = 1
             elif state[1] and (state[-3] or state[-1]): # Gate is right but bot moved left or stayed still
-                self.reward = -0.1
+                self.reward = -1
             elif state[2] and (state[-2] or state[-1]): # Gate is left but bot moved right or stayed still
-                self.reward = -0.1
+                self.reward = -1
             elif state[3]: # Bot is within gate range
-                self.reward = 0.2
+                self.reward = 2
         return self.reward
     
     def move(self, params, state):
