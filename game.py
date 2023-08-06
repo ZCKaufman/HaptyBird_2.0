@@ -11,6 +11,7 @@ from player import Player
 from gate import Gate
 import datetime
 import time
+import optuna
 
 DEVICE = "cpu"
 
@@ -19,7 +20,7 @@ DEVICE = "cpu"
 def init_params():
     params = dict()
     # Bot NN parameters (adapted largely from https://github.com/maurock/snake-ga/tree/master)
-    params['total_games'] = 250
+    params['total_games'] = 500
     # Game parameters
     params["game_x_axis"] = 180
     params["game_y_axis"] = 270
@@ -37,14 +38,20 @@ def init_params():
     params["target_acc"] = -10
     return params
 
-def run_games(params): # Runs the game
+def objective(trial, params): # Runs the game
     pygame.init()
     bot = HaptyBot(params)
     bot.to(DEVICE)
     player = HaptyBot(params) # Eventually switch to Player class
-    bot.optimizer = opt.Adam(bot.parameters(), weight_decay=0, lr=bot.learning_rate)
-    # Training stuff
+    #bot.optimizer = opt.Adam(bot.parameters(), weight_decay=0, lr=bot.learning_rate)
+    ### OPTUNA HYPERPARAMETERS ###
+    trial.should_prune()
+    bot.learning_rate = trial.suggest_float("lr", 1e-5, 1e-1, log=True)
+    bot.optimizer = trial.suggest_categorical("optimizer", ["Adam", "RMSprop", "SGD"])
+    bot.epsilon_decay = trial.suggest_float("decay", 1e-3, 5e-1, log=True)
+    bot.deploy_epsilon = trial.suggest_float("epsilon", 0.5, 1e-2)
 
+    # Training stuff
     gates_passed = 0
     games_counter = 0
     bot_scores = []
@@ -129,12 +136,12 @@ def run_games(params): # Runs the game
     if bot.test == False and curr_acc > params["target_acc"]:
         model_weights = bot.state_dict()
         torch.save(model_weights, bot.weights_path)
-        print(f'Weights saved, finished with higher accuracy\nCurrent: {curr_acc}\nPrevious Best: {prev_acc}')
+        print(f'Weights saved, finished with higher accuracy\nCurrent: {curr_acc}\nPrevious Best: {params["target_acc"]}')
     elif bot.test:
         print("Finished testing.")
     else:
         print(f'Finished with lower accuracy\nCurrent: {curr_acc}\nTarget: {params["target_acc"]}')
-    return
+    return curr_acc
 
 def score(user, gate_interact):
     if(gate_interact[1] == 1):
@@ -237,7 +244,30 @@ if __name__ == '__main__':
     print("Args", args)
     params['display'] = args.display
     params['speed'] = args.speed
-    run_games(params)
+
+    ####################
+    ### OPTUNA SETUP ###
+    ####################
+    study = optuna.create_study(direction="maximize")  # 'maximize' because objective function is returning accuracy
+    #study = optuna.create_study(direction="minimize")  # 'minimize' because objective function is returning loss
+    study.optimize(lambda trial: objective(trial, params), n_trials=500)
+
+    pruned_trials = [t for t in study.trials if t.state == optuna.trial.TrialState.PRUNED]
+    complete_trials = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
+
+    print("Study statistics: ")
+    print("  Number of finished trials: ", len(study.trials))
+    print("  Number of pruned trials: ", len(pruned_trials))
+    print("  Number of complete trials: ", len(complete_trials))
+
+    print("Best trial:")
+    trial = study.best_trial
+
+    print("  Value: ", trial.value)
+
+    print("  Params: ")
+    for key, value in trial.params.items():
+        print("    {}: {}".format(key, value))
 
     end_time = time.time()
     print("Time ended")
