@@ -19,45 +19,30 @@ DEVICE = "cpu"
 def init_params():
     params = dict()
     # Bot NN parameters (adapted largely from https://github.com/maurock/snake-ga/tree/master)
-    params['epsilon_decay'] = 1/20
-    #params['learning_rate'] = 0.00013629 # Try increasing the learning rate
-    params['learning_rate'] = 0.03
-    params['first_layer_size'] = 10    # Neurons in the first layer
-    params['second_layer_size'] = 8   # Neurons in the second layer
-    params['third_layer_size'] = 6    # Neurons in the third layer
-    params['total_games'] = 500       
-    params['memory_size'] = 2500
-    params['batch_size'] = 1000
-    params['train'] = True # Do not change, use arguments in terminal to train
-    params["deploy"] = False # Do not change, HaptyBot deployed to game should be default
+    params['total_games'] = 250
     # Game parameters
     params["game_x_axis"] = 180
     params["game_y_axis"] = 270
     params["display_scale"] = 3
     params["game_width"] = params["game_x_axis"] * params["display_scale"]
     params["game_height"] = params["game_y_axis"] * params["display_scale"]
-    params["deploy_epsilon"] = 0.05
     params["cursor_y_axis"] = params["game_height"] - (5 * params["display_scale"])
-    params["bot_start_x"] = 100
     params["player_start_x"] = 200
     params["gate_size"] = 20
     params["gate_min_distance"] = 5
     params["gate_cushion"] = 1
     # Data parameters
-    params['weights_path'] = 'weights/weights.h5'
     params['plot_score'] = True
-    params['log_path'] = 'logs/scores_' + str(datetime.datetime.now().strftime("%Y%m%d%H%M%S")) +'.txt'
-
-    # User parameters
-
+    params["attempt"] = 8
+    params["target_acc"] = -10
     return params
 
 def run_games(params): # Runs the game
     pygame.init()
     bot = HaptyBot(params)
     bot.to(DEVICE)
-    player = HaptyBot(params) 
-    bot.optimizer = opt.Adam(bot.parameters(), weight_decay=0, lr=params['learning_rate'])
+    player = HaptyBot(params) # Eventually switch to Player class
+    bot.optimizer = opt.Adam(bot.parameters(), weight_decay=0, lr=bot.learning_rate)
     # Training stuff
 
     gates_passed = 0
@@ -66,8 +51,6 @@ def run_games(params): # Runs the game
     game_scores = []
     acc_scores = []
     player_scores = []
-
-    prev_acc = -11.664
     curr_acc = 0
 
     initial_action = [1, 0, 0] # Stay still as initial action
@@ -104,10 +87,10 @@ def run_games(params): # Runs the game
             bot.crash = False
 
             # If training, begin with high epsilon and work up, else use param epsilon
-            if params["train"]:
-                bot.epsilon = max(0, (1 - (games_counter * params["epsilon_decay"]))) + params["deploy_epsilon"]
+            if bot.test == False:
+                bot.epsilon = max(0, (1 - (games_counter * bot.epsilon_decay))) + bot.deploy_epsilon
             else:
-                bot.epsilon = params["deploy_epsilon"]
+                bot.epsilon = bot.deploy_epsilon
 
             player_hit, bot_hit = gate.update_y(params, player, bot, game)
             # Move gate downwards
@@ -124,7 +107,7 @@ def run_games(params): # Runs the game
 
             new_state = game.get_state(player, bot, gate)
             # Set scores and/or rewards as relevant
-            if(params["train"]):
+            if(bot.test == False):
                 reward = bot.get_reward(bot_hit, new_state)
                 bot.train_ST_memory(state, bot_move, reward, new_state, bot_hit[0])
                 bot.remember(state, bot_move, reward, new_state, bot_hit[0])
@@ -141,16 +124,16 @@ def run_games(params): # Runs the game
         curr_acc = bot.score / games_counter
         acc_scores.append(curr_acc)
         game_scores.append(sum(bot_scores[-5:]))
-        print(f'Game {games_counter}\tBot: {sum(bot_scores[-5:])}, {bot.score}\tPlayer: {sum(player_scores[-5:])}, {player.score}\tEpsilon: {round(bot.epsilon, 2)}\tAccurracy: {curr_acc}')
-    plot_scores(game_scores, bot_scores, acc_scores)
-    if params['train'] and curr_acc > prev_acc:
+        print(f'Game {games_counter}\tBot: {sum(bot_scores[-5:])}, {bot.score}\tPlayer: {sum(player_scores[-5:])}, {player.score}\tEpsilon: {round(bot.epsilon, 2)}\tAccurracy: {round(curr_acc, 4)}')
+    plot_scores(game_scores, bot_scores, acc_scores, params["attempt"])
+    if bot.test == False and curr_acc > params["target_acc"]:
         model_weights = bot.state_dict()
-        torch.save(model_weights, params["weights_path"])
+        torch.save(model_weights, bot.weights_path)
         print(f'Weights saved, finished with higher accuracy\nCurrent: {curr_acc}\nPrevious Best: {prev_acc}')
-    elif params['deploy']:
+    elif bot.test:
         print("Finished testing.")
     else:
-        print(f'Finished with lower accuracy\nCurrent: {curr_acc}\nBest: {prev_acc}')
+        print(f'Finished with lower accuracy\nCurrent: {curr_acc}\nTarget: {params["target_acc"]}')
     return
 
 def score(user, gate_interact):
@@ -164,12 +147,12 @@ def score(user, gate_interact):
         user.score -= 3
         return -3
     
-def plot_scores(game_scores, bot_scores, acc_scores):
+def plot_scores(game_scores, bot_scores, acc_scores, attempt):
     x = len(bot_scores)
 
     plt.plot(game_scores, "bo")
     plt.plot(acc_scores)
-    plt.savefig("plots/plot6.png")
+    plt.savefig("plots/plot" + str(attempt) + ".png")
 
 class Game:
     def __init__(self, width, height):
@@ -254,15 +237,7 @@ if __name__ == '__main__':
     print("Args", args)
     params['display'] = args.display
     params['speed'] = args.speed
-    if params['train']:
-        print("Training...")
-        params['load_weights'] = False   
-        run_games(params)
-    if params['deploy']:
-        print("Testing...")
-        params['train'] = False
-        params['load_weights'] = True
-        run_games(params)
+    run_games(params)
 
     end_time = time.time()
     print("Time ended")

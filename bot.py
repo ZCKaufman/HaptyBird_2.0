@@ -14,31 +14,34 @@ DEVICE = "cpu"
 class HaptyBot(torch.nn.Module):
     def __init__(self, params):
         super().__init__()
+        ### PARAMETERS AND VARIABLES ###
+        # Training Parameters
+        self.test = False
+        self.learning_rate = 0.03
+        self.memory_size = 3000
+        self.first_layer = 10
+        self.second_layer = 8
+        self.third_layer = 6
         # Training variables
         self.reward = 0
-        self.gamma = 0.9
-        self.dataframe = pd.DataFrame()
-        self.short_memory = np.array([])
-        self.prediction_count = 0
-        self.learning_rate = params['learning_rate']        
+        self.gamma = 0.9 # Figure out what this is
+        self.prediction_count = 0      
         self.epsilon = 1
-        self.actual = []
-        self.first_layer = params['first_layer_size']
-        self.second_layer = params['second_layer_size']
-        self.third_layer = params['third_layer_size']
-        self.memory = collections.deque(maxlen=params['memory_size']) #Replace with list?
-        #self.memory = np.empty(params["memory_size"])
+        self.epsilon_decay = 1/20
+        self.memory = collections.deque(maxlen=self.memory_size)
         self.optimizer = None
-        # Deployment variables
-        self.score = 0
-        self.x = params["bot_start_x"]
+        # Deployment Parameters
+        self.x = 200 # Starting position
         self.y = params["cursor_y_axis"]
+        self.deploy_epsilon = 0.05
         self.x_change = 1 # Arbitrarily begin by going right
-        # Training AND Deployment variables
-        self.weights = params['weights_path']
-        self.load_weights = params['load_weights']
+        # Training AND Deployment Parameters/Variables
+        self.score = 0
+        self.weights_path = "weights/weights.h5"
+        self.weights = self.weights_path
+        self.load_weights = True
 
-        # Create network
+        ### NETWORK CREATION ###
         self.f1 = nn.Linear(7, self.first_layer)
         self.f2 = nn.Linear(self.first_layer, self.second_layer)
         self.f3 = nn.Linear(self.second_layer, self.third_layer)
@@ -58,24 +61,24 @@ class HaptyBot(torch.nn.Module):
     def get_reward(self, hit, state): 
         self.reward = 0
         if hit[0]:
-            '''if(hit[1] == 1):
+            if(hit[1] == 1):
                 self.reward = 10
             elif(hit[1] == 0):
-                self.reward = -10'''
+                self.reward = -10
             if(hit[1] == -1):
                 self.reward = -30
             return self.reward
         else:
             if state[1] and state[-2]: # Gate is right and bot moved right
-                self.reward = 1
+                self.reward = .1
             elif state[2] and state[-3]: # Gate is left and bot moved left
-                self.reward = 1
+                self.reward = .1
             elif state[1] and (state[-3] or state[-1]): # Gate is right but bot moved left or stayed still
-                self.reward = -1
+                self.reward = -.1
             elif state[2] and (state[-2] or state[-1]): # Gate is left but bot moved right or stayed still
-                self.reward = -1
+                self.reward = -.1
             elif state[3]: # Bot is within gate range
-                self.reward = 2
+                self.reward = .2
         return self.reward
     
     def move(self, params, state):
@@ -106,7 +109,6 @@ class HaptyBot(torch.nn.Module):
         return move
 
     def remember(self, state, action, reward, next_state, done):
-        #np.append(self.memory, [state, action, reward, next_state, done])
         self.memory.append((state, action, reward, next_state, done))
         return
     
