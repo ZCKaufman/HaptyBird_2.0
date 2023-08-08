@@ -19,7 +19,7 @@ DEVICE = "cpu"
 def init_params():
     params = dict()
     # Bot NN parameters (adapted largely from https://github.com/maurock/snake-ga/tree/master)
-    params['total_games'] = 5
+    params['total_games'] = 250
     # Game parameters
     params["game_x_axis"] = 180
     params["game_y_axis"] = 270
@@ -34,7 +34,7 @@ def init_params():
     # Data parameters
     params['plot_score'] = True
     params["attempt"] = 8
-    params["target_acc"] = -15
+    params["target_acc"] = -15 # Ignore for now
     return params
 
 def objective(trial, params): # Runs the game
@@ -252,7 +252,7 @@ if __name__ == '__main__':
     ####################
     study = optuna.create_study(study_name=str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")), direction="maximize")  # 'maximize' because objective function is returning accuracy
     #study = optuna.create_study(direction="minimize")  # 'minimize' because objective function is returning loss
-    study.optimize(lambda trial: objective(trial, params), n_trials=5)
+    study.optimize(lambda trial: objective(trial, params), n_trials=100)
 
     pruned_trials = [t for t in study.trials if t.state == optuna.trial.TrialState.PRUNED]
     complete_trials = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
