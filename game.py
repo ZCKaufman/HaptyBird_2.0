@@ -31,10 +31,11 @@ def init_params():
     params["gate_size"] = 20
     params["gate_min_distance"] = 5
     params["gate_cushion"] = 1
+    params["ngates"] = 5
     # Data parameters
     params['plot_score'] = True
     params["attempt"] = 8
-    params["target_acc"] = -15 # Ignore for now
+    params["target_acc"] = -100 # Ignore for now
     return params
 
 def objective(trial, params): # Runs the game
@@ -50,6 +51,7 @@ def objective(trial, params): # Runs the game
     bot.epsilon_decay = trial.suggest_float("decay", 1e-3, 5e-1, log=True)
     bot.deploy_epsilon = trial.suggest_float("epsilon", 1e-2, 0.5)
     bot.optimizer = getattr(opt, optimizer)(bot.parameters(), lr=bot.learning_rate)
+    params["ngates"] = trial.suggest_int("batch", 2, 7)
 
     # Training stuff
     gates_passed = 0
@@ -90,7 +92,7 @@ def objective(trial, params): # Runs the game
         games_counter += 1 
         # Run the game until a gate has been hit
         steps = 0
-        while(gates_passed % 5 != 0 or gates_passed == 0):
+        while(gates_passed % params["ngates"] != 0 or gates_passed == 0):
             # Reset crash records
             player.crash = False
             bot.crash = False
@@ -130,10 +132,10 @@ def objective(trial, params): # Runs the game
                 pygame.time.wait(params["speed"]) # Slows down game for viewing
 
             steps += 1
-        curr_acc = bot.score / games_counter
+        curr_acc =bot.score / (params["ngates"] * 3 * games_counter)
         acc_scores.append(curr_acc)
-        game_scores.append(sum(bot_scores[-5:]))
-        print(f'Game {games_counter}\tBot: {sum(bot_scores[-5:])}, {bot.score}\tPlayer: {sum(player_scores[-5:])}, {player.score}\tEpsilon: {round(bot.epsilon, 2)}\tAccurracy: {round(curr_acc, 4)}')
+        game_scores.append(sum(bot_scores[-params["ngates"]:]))
+        print(f'Game {games_counter}\tBot: {sum(bot_scores[-params["ngates"]:])}, {bot.score}\tPlayer: {sum(player_scores[-params["ngates"]:])}, {player.score}\tEpsilon: {round(bot.epsilon, 2)}\tAccurracy: {round(curr_acc, 4)}')
     plot_scores(game_scores, bot_scores, acc_scores, str(trial.number))
     if bot.test == False and curr_acc > params["target_acc"]:
         model_weights = bot.state_dict()
