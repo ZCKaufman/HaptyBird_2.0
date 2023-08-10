@@ -10,7 +10,9 @@ from player import Player
 from gate import Gate
 import datetime
 import time
-import optuna
+from ray import tune
+from ray.air import Checkpoint, session
+from ray.tune.schedulers import ASHAScheduler
 
 DEVICE = "cpu"
 
@@ -19,7 +21,7 @@ DEVICE = "cpu"
 def init_params():
     params = dict()
     # Bot NN parameters (adapted largely from https://github.com/maurock/snake-ga/tree/master)
-    params['total_games'] = 250
+    params['total_games'] = 2
     # Game parameters
     params["game_x_axis"] = 180
     params["game_y_axis"] = 270
@@ -38,20 +40,21 @@ def init_params():
     params["target_acc"] = -100 # Ignore for now
     return params
 
-def objective(trial, params): # Runs the game
+def train(config): # Runs the game
+    params = config["params"]
     pygame.init()
     bot = HaptyBot(params)
     bot.to(DEVICE)
     player = HaptyBot(params) # Eventually switch to Player class
     #bot.optimizer = opt.Adam(bot.parameters(), weight_decay=0, lr=bot.learning_rate)
-    ### OPTUNA HYPERPARAMETERS ###
-    trial.should_prune()
-    bot.learning_rate = trial.suggest_float("lr", 1e-5, 1e-1, log=True)
-    optimizer = trial.suggest_categorical("optimizer", ["Adam", "RMSprop", "SGD"])
-    bot.epsilon_decay = trial.suggest_float("decay", 1e-3, 5e-1, log=True)
-    bot.deploy_epsilon = trial.suggest_float("epsilon", 1e-2, 0.5)
+    ### RAY TUNE HYPERPARAMETERS ###
+    bot.learning_rate = config["lr"]
+    optimizer = config["optimizer"]
+    bot.epsilon_decay = config["decay"]
+    bot.deploy_epsilon = config["epsilon"]
+    params["ngates"] = config["ngates"]
+
     bot.optimizer = getattr(opt, optimizer)(bot.parameters(), lr=bot.learning_rate)
-    params["ngates"] = trial.suggest_int("batch", 2, 7)
 
     # Training stuff
     gates_passed = 0
@@ -249,29 +252,27 @@ if __name__ == '__main__':
     params['display'] = args.display
     params['speed'] = args.speed
 
-    ####################
-    ### OPTUNA SETUP ###
-    ####################
-    study = optuna.create_study(study_name=str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")), direction="maximize")  # 'maximize' because objective function is returning accuracy
-    #study = optuna.create_study(direction="minimize")  # 'minimize' because objective function is returning loss
-    study.optimize(lambda trial: objective(trial, params), n_trials=100)
+    ######################
+    ### RAY TUNE SETUP ###
+    ######################
+    search_space = {
+        "lr": tune.loguniform(1e-5, 1e-1),
+        "decay": tune.loguniform(1e-3, 5e-1),
+        "epsilon": tune.uniform(1e-2, 0.5),
+        "ngates": tune.randint(2, 7),
+        "optimizer": tune.choice(["Adam", "RMSprop", "SGD"]),
+        "params": params
+    }
 
-    pruned_trials = [t for t in study.trials if t.state == optuna.trial.TrialState.PRUNED]
-    complete_trials = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
-
-    print("Study statistics: ")
-    print("  Number of finished trials: ", len(study.trials))
-    print("  Number of pruned trials: ", len(pruned_trials))
-    print("  Number of complete trials: ", len(complete_trials))
-
-    print("Best trial:")
-    trial = study.best_trial
-
-    print("  Value: ", trial.value)
-
-    print("  Params: ")
-    for key, value in trial.params.items():
-        print("    {}: {}".format(key, value))
+    tuner = tune.Tuner(train, param_space=search_space)
+    
+    '''tuner = tune.Tuner(tune.with_parameters(
+        train, 
+        ray_cfg=search_space,
+        params=params
+    ))'''
+    results = tuner.fit()
+    print(results)
 
     end_time = time.time()
     print("Time ended")

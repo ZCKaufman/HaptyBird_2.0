@@ -39,7 +39,7 @@ class HaptyBot(torch.nn.Module):
         self.score = 0
         self.weights_path = "weights/weights.h5"
         self.weights = self.weights_path
-        self.load_weights = True
+        self.load_weights = False
 
         ### NETWORK CREATION ###
         self.f1 = nn.Linear(7, self.first_layer)
