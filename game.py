@@ -10,7 +10,9 @@ from player import Player
 from gate import Gate
 import datetime
 import time
+import ray
 from ray import tune
+from ray.tune import TuneConfig
 from ray.air import Checkpoint, session
 from ray.tune.schedulers import ASHAScheduler
 
@@ -21,7 +23,7 @@ DEVICE = "cpu"
 def init_params():
     params = dict()
     # Bot NN parameters (adapted largely from https://github.com/maurock/snake-ga/tree/master)
-    params['total_games'] = 2
+    params['total_games'] = 500
     # Game parameters
     params["game_x_axis"] = 180
     params["game_y_axis"] = 270
@@ -52,6 +54,7 @@ def train(config): # Runs the game
     optimizer = config["optimizer"]
     bot.epsilon_decay = config["decay"]
     bot.deploy_epsilon = config["epsilon"]
+    params["total_games"] = config["ngames"]
     params["ngates"] = config["ngates"]
 
     bot.optimizer = getattr(opt, optimizer)(bot.parameters(), lr=bot.learning_rate)
@@ -78,8 +81,8 @@ def train(config): # Runs the game
         #player = Player(params) 
         gate = Gate(params, game) 
         gates_passed = 0 # Reset number of gates every game
-        if(trial.number > 1):
-            params["target_acc"] = study.best_trial.value
+        #if(t):
+        #    params["target_acc"] = study.best_trial.value
 
         # Begin game and display (if applicable)
         init_state = game.get_state(player, bot, gate)
@@ -139,7 +142,7 @@ def train(config): # Runs the game
         acc_scores.append(curr_acc)
         game_scores.append(sum(bot_scores[-params["ngates"]:]))
         print(f'Game {games_counter}\tBot: {sum(bot_scores[-params["ngates"]:])}, {bot.score}\tPlayer: {sum(player_scores[-params["ngates"]:])}, {player.score}\tEpsilon: {round(bot.epsilon, 2)}\tAccurracy: {round(curr_acc, 4)}')
-    plot_scores(game_scores, bot_scores, acc_scores, str(trial.number))
+    #plot_scores(game_scores, bot_scores, acc_scores, str(trial.number))
     if bot.test == False and curr_acc > params["target_acc"]:
         model_weights = bot.state_dict()
         torch.save(model_weights, bot.weights_path)
@@ -148,7 +151,7 @@ def train(config): # Runs the game
         print("Finished testing.")
     else:
         print(f'Finished with lower accuracy\nCurrent: {curr_acc}\nTarget: {params["target_acc"]}')
-    return curr_acc
+    session.report({"acc": curr_acc})
 
 def score(user, gate_interact):
     if(gate_interact[1] == 1):
@@ -261,18 +264,38 @@ if __name__ == '__main__':
         "epsilon": tune.uniform(1e-2, 0.5),
         "ngates": tune.randint(2, 7),
         "optimizer": tune.choice(["Adam", "RMSprop", "SGD"]),
+	    "ngames": tune.randint(300, 650),
         "params": params
     }
 
-    tuner = tune.Tuner(train, param_space=search_space)
+    ray.init(num_cpus=192, num_gpus=0)
+    tuner = tune.Tuner(train, param_space=search_space, tune_config=TuneConfig(scheduler=ASHAScheduler(), metric="acc", mode="max", num_samples = 19200, chdir_to_trial_dir=False))
     
-    '''tuner = tune.Tuner(tune.with_parameters(
-        train, 
-        ray_cfg=search_space,
-        params=params
-    ))'''
+    ####################
+    ### RAY ANALYSIS ###
+    ####################
+
     results = tuner.fit()
-    print(results)
+    best_result = results.get_best_result()
+    print("---Trial results---\n", results)
+    print("---Current Best results---\n", best_result)
+
+    for i, result in enumerate(results):
+        if result.error:
+            print(f"Trial #{i} had an error:", result.error)
+            continue
+
+        print(
+            f"Trial #{i} finished successfully with a mean accuracy metric of:",
+            result.metrics["mean_accuracy"]
+        )
+
+    results_df = results.get_dataframe()
+
+    results_df.to_csv("/results.csv")
+
+    best_result_df = best_result.metrics_dataframe
+    best_result_df.to_csv("/best_results.csv")
 
     end_time = time.time()
     print("Time ended")
