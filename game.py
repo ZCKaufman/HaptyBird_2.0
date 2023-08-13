@@ -23,7 +23,7 @@ DEVICE = "cpu"
 def init_params():
     params = dict()
     # Bot NN parameters (adapted largely from https://github.com/maurock/snake-ga/tree/master)
-    params['total_games'] = 500
+    params['total_games'] = 0 # Modified by ngames by ray tune
     # Game parameters
     params["game_x_axis"] = 180
     params["game_y_axis"] = 270
@@ -141,16 +141,16 @@ def train(config): # Runs the game
         curr_acc =bot.score / (params["ngates"] * 3 * games_counter)
         acc_scores.append(curr_acc)
         game_scores.append(sum(bot_scores[-params["ngates"]:]))
-        print(f'Game {games_counter}\tBot: {sum(bot_scores[-params["ngates"]:])}, {bot.score}\tPlayer: {sum(player_scores[-params["ngates"]:])}, {player.score}\tEpsilon: {round(bot.epsilon, 2)}\tAccurracy: {round(curr_acc, 4)}')
+        #print(f'Game {games_counter}\tBot: {sum(bot_scores[-params["ngates"]:])}, {bot.score}\tPlayer: {sum(player_scores[-params["ngates"]:])}, {player.score}\tEpsilon: {round(bot.epsilon, 2)}\tAccurracy: {round(curr_acc, 4)}')
     #plot_scores(game_scores, bot_scores, acc_scores, str(trial.number))
     if bot.test == False and curr_acc > params["target_acc"]:
         model_weights = bot.state_dict()
         torch.save(model_weights, bot.weights_path)
-        print(f'Weights saved, finished with higher accuracy\nCurrent: {curr_acc}\nTarget: {params["target_acc"]}')
-    elif bot.test:
-        print("Finished testing.")
-    else:
-        print(f'Finished with lower accuracy\nCurrent: {curr_acc}\nTarget: {params["target_acc"]}')
+        #print(f'Weights saved, finished with higher accuracy\nCurrent: {curr_acc}\nTarget: {params["target_acc"]}')
+    #elif bot.test:
+    #    print("Finished testing.")
+    #else:
+    #    print(f'Finished with lower accuracy\nCurrent: {curr_acc}\nTarget: {params["target_acc"]}')
     session.report({"acc": curr_acc})
 
 def score(user, gate_interact):
@@ -206,25 +206,6 @@ class Game:
     def get_state(self, player, bot, gate):
         # This state is used to train the bot, if modified it will break things
         pos_gate = gate.pos_gate[0]
-        '''state = [
-            # Player state stats
-            player.x not in pos_gate, # Is the player in danger
-            player.x < pos_gate[0], # Gate right
-            player.x > pos_gate[-1], # Gate left
-            player.x in pos_gate, # In gate range
-            player.x_change == -1,  # move left
-            player.x_change == 1,  # move right
-            player.x_change == 0, # Stay still
-
-            # Bot state stats
-            bot.x not in pos_gate, # Is the player in danger
-            bot.x < pos_gate[0], # Gate right
-            bot.x > pos_gate[-1], # Gate left
-            bot.x in pos_gate, # In gate range
-            bot.x_change == -1,  # move left
-            bot.x_change == 1,  # move right
-            bot.x_change == 0 # Stay still
-        ]'''
 
         state = [
             # Bot state stats
@@ -264,7 +245,7 @@ if __name__ == '__main__':
         "epsilon": tune.uniform(1e-2, 0.5),
         "ngates": tune.randint(2, 7),
         "optimizer": tune.choice(["Adam", "RMSprop", "SGD"]),
-	    "ngames": tune.randint(300, 650),
+	    "ngames": tune.randint(250, 1000),
         "params": params
     }
 
@@ -280,7 +261,7 @@ if __name__ == '__main__':
     print("---Trial results---\n", results)
     print("---Current Best results---\n", best_result)
 
-    for i, result in enumerate(results):
+    '''for i, result in enumerate(results):
         if result.error:
             print(f"Trial #{i} had an error:", result.error)
             continue
@@ -288,14 +269,14 @@ if __name__ == '__main__':
         print(
             f"Trial #{i} finished successfully with a mean accuracy metric of:",
             result.metrics["mean_accuracy"]
-        )
+        )'''
 
     results_df = results.get_dataframe()
 
-    results_df.to_csv("/results.csv")
+    results_df.to_csv("results.csv")
 
     best_result_df = best_result.metrics_dataframe
-    best_result_df.to_csv("/best_results.csv")
+    best_result_df.to_csv("best_results.csv")
 
     end_time = time.time()
     print("Time ended")

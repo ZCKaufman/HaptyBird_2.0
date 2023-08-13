@@ -1,0 +1,2 @@
+,acc,time_this_iter_s,done,training_iteration,trial_id,date,timestamp,time_total_s,pid,hostname,node_ip,time_since_restore,iterations_since_restore
+0,-0.4444444444444444,10.686972856521606,False,1,5d41e_00062,2023-08-12_21-05-22,1691888722,10.686972856521606,444769,farpoint,10.0.0.144,10.686972856521606,1
