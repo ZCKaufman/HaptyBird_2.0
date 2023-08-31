@@ -23,7 +23,7 @@ DEVICE = "cpu"
 def init_params():
     params = dict()
     # Bot NN parameters (adapted largely from https://github.com/maurock/snake-ga/tree/master)
-    params['total_games'] = 0 # Modified by ngames by ray tune
+    params['total_games'] = 328
     # Game parameters
     params["game_x_axis"] = 180
     params["game_y_axis"] = 270
@@ -35,11 +35,19 @@ def init_params():
     params["gate_size"] = 20
     params["gate_min_distance"] = 5
     params["gate_cushion"] = 1
-    params["ngates"] = 5
+    params["ngates"] = 4
     # Data parameters
     params['plot_score'] = True
     params["attempt"] = 8
     params["target_acc"] = -100 # Ignore for now
+    # Reward Params
+    params["PGate"] = 10
+    params["NGate"] = -10
+    params["WallHit"] = -30
+    params["PDir"] = 0.1
+    params["NDir"] = -0.1
+    params["PRange"] = 0.2
+    params["NRange"] = -0.2
     return params
 
 def train(config): # Runs the game
@@ -50,14 +58,21 @@ def train(config): # Runs the game
     player = HaptyBot(params) # Eventually switch to Player class
     #bot.optimizer = opt.Adam(bot.parameters(), weight_decay=0, lr=bot.learning_rate)
     ### RAY TUNE HYPERPARAMETERS ###
-    bot.learning_rate = config["lr"]
+    #bot.learning_rate = config["lr"]
     optimizer = "SGD"
-    bot.epsilon_decay = config["decay"]
-    bot.deploy_epsilon = config["epsilon"]
-    params["total_games"] = config["ngames"]
-    params["ngates"] = config["ngates"]
-
+    #bot.epsilon_decay = config["decay"]
+    #bot.deploy_epsilon = config["epsilon"]
+    #params["total_games"] = config["ngames"]
+    #params["ngates"] = config["ngates"]
     bot.optimizer = getattr(opt, optimizer)(bot.parameters(), lr=bot.learning_rate)
+
+    params["PGate"] = config["PGate"]
+    params["NGate"] = config["NGate"]
+    params["WallHit"] = config["WallHit"]
+    params["PDir"] = config["PDir"]
+    params["NDir"] = config["NDir"]
+    params["PRange"] = config["PRange"]
+    params["NRange"] = config["NRange"]
 
     # Training stuff
     gates_passed = 0
@@ -87,7 +102,7 @@ def train(config): # Runs the game
         # Begin game and display (if applicable)
         init_state = game.get_state(player, bot, gate)
         init_move = player.move(params, init_state)
-        init_reward = bot.get_reward(init_move, init_state)
+        init_reward = bot.get_reward(init_move, init_state, params)
         secondary_state = game.get_state(player, bot, gate)
         bot.remember(init_state, initial_action, init_reward, secondary_state, False)
         bot.train_LT_memory()
@@ -105,7 +120,7 @@ def train(config): # Runs the game
 
             # If training, begin with high epsilon and work up, else use param epsilon
             if bot.test == False:
-                bot.epsilon = max(0, (1 - (games_counter * bot.epsilon_decay)))
+                bot.epsilon = (max(0, (1 - (games_counter * bot.epsilon_decay)))) + bot.deploy_epsilon
             else:
                 bot.epsilon = bot.deploy_epsilon
 
@@ -125,7 +140,7 @@ def train(config): # Runs the game
             new_state = game.get_state(player, bot, gate)
             # Set scores and/or rewards as relevant
             if(bot.test == False):
-                reward = bot.get_reward(bot_hit, new_state)
+                reward = bot.get_reward(bot_hit, new_state, params)
                 bot.train_ST_memory(state, bot_move, reward, new_state, bot_hit[0])
                 bot.remember(state, bot_move, reward, new_state, bot_hit[0])
             if(player_hit[0] or bot_hit[0]):
@@ -241,16 +256,18 @@ if __name__ == '__main__':
     ### RAY TUNE SETUP ###
     ######################
     search_space = {
-        "lr": tune.loguniform(1e-6, 1e-4),
-        "decay": tune.loguniform(2e-2, 3e-2),
-        "epsilon": tune.uniform(0.3, 0.55),
-        "ngates": tune.randint(4, 6),
-	    "ngames": tune.randint(350, 400),
+        "PGate": tune.uniform(0, 1000),
+        "NGate": tune.uniform(-1000, 0),
+        "WallHit": tune.uniform(-1000, 0),
+        "PDir": tune.uniform(0, 1000),
+        "NDir": tune.uniform(-1000, 0),
+        "PRange": tune.uniform(0, 1000),
+        "NRange": tune.uniform(-1000, 0),
         "params": params
     }
 
     ray.init(num_cpus=32, num_gpus=0)
-    tuner = tune.Tuner(train, param_space=search_space, tune_config=TuneConfig(scheduler=ASHAScheduler(), metric="acc", mode="max", num_samples = 256, chdir_to_trial_dir=False))
+    tuner = tune.Tuner(train, param_space=search_space, tune_config=TuneConfig(scheduler=ASHAScheduler(), metric="acc", mode="max", num_samples = 128, chdir_to_trial_dir=False))
     
     ####################
     ### RAY ANALYSIS ###

@@ -17,7 +17,7 @@ class HaptyBot(torch.nn.Module):
         ### PARAMETERS AND VARIABLES ###
         # Training Parameters
         self.test = False
-        self.learning_rate = 0.03
+        self.learning_rate = 2.084e-05
         self.memory_size = 5000
         self.first_layer = 10
         self.second_layer = 8
@@ -27,13 +27,13 @@ class HaptyBot(torch.nn.Module):
         self.gamma = 0.9 # Figure out what this is
         self.prediction_count = 0      
         self.epsilon = 1
-        self.epsilon_decay = 1/20
+        self.epsilon_decay = 0.02055
         self.memory = collections.deque(maxlen=self.memory_size)
         self.optimizer = None
         # Deployment Parameters
         self.x = 200 # Starting position
         self.y = params["cursor_y_axis"]
-        self.deploy_epsilon = 0.05
+        self.deploy_epsilon = 0.3191
         self.x_change = 1 # Arbitrarily begin by going right
         # Training AND Deployment Parameters/Variables
         self.score = 0
@@ -58,27 +58,29 @@ class HaptyBot(torch.nn.Module):
 
     # Training methods
     # This is NOT to be confused with score() which is part of the game process, reward() is part of training
-    def get_reward(self, hit, state): 
+    def get_reward(self, hit, state, params): 
         self.reward = 0
         if hit[0]:
-            if(hit[1] == 1):
-                self.reward = 10
-            elif(hit[1] == 0):
-                self.reward = -10
-            if(hit[1] == -1):
-                self.reward = -30
+            if(hit[1] == 1): # Went through correct gate
+                self.reward = params["PGate"]
+            elif(hit[1] == 0): # Went through wrong gate
+                self.reward = params["NGate"]
+            if(hit[1] == -1): # Hit a wall
+                self.reward = params["WallHit"]
             return self.reward
-        else:
+        else: # CONCERN: Should I be using only ifs, multiple of these may be true so they should stack
             if state[1] and state[-2]: # Gate is right and bot moved right
-                self.reward = .1
+                self.reward = params["PDir"]
             elif state[2] and state[-3]: # Gate is left and bot moved left
-                self.reward = .1
+                self.reward = params["PDir"]
             elif state[1] and (state[-3] or state[-1]): # Gate is right but bot moved left or stayed still
-                self.reward = -.1
+                self.reward = params["NDir"]
             elif state[2] and (state[-2] or state[-1]): # Gate is left but bot moved right or stayed still
-                self.reward = -.1
+                self.reward = params["NDir"]
             elif state[3]: # Bot is within gate range
-                self.reward = .2
+                self.reward = params["PRange"]
+            elif state[3]: # Bot is within gate range
+                self.reward = params["NRange"]
         return self.reward
     
     def move(self, params, state):
