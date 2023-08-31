@@ -51,7 +51,7 @@ def train(config): # Runs the game
     #bot.optimizer = opt.Adam(bot.parameters(), weight_decay=0, lr=bot.learning_rate)
     ### RAY TUNE HYPERPARAMETERS ###
     bot.learning_rate = config["lr"]
-    optimizer = config["optimizer"]
+    optimizer = "SGD"
     bot.epsilon_decay = config["decay"]
     bot.deploy_epsilon = config["epsilon"]
     params["total_games"] = config["ngames"]
@@ -141,7 +141,8 @@ def train(config): # Runs the game
         curr_acc =bot.score / (params["ngates"] * 3 * games_counter)
         acc_scores.append(curr_acc)
         game_scores.append(sum(bot_scores[-params["ngates"]:]))
-        #print(f'Game {games_counter}\tBot: {sum(bot_scores[-params["ngates"]:])}, {bot.score}\tPlayer: {sum(player_scores[-params["ngates"]:])}, {player.score}\tEpsilon: {round(bot.epsilon, 2)}\tAccurracy: {round(curr_acc, 4)}')
+        if(games_counter % 50 == 0):
+            print(f'Game: {games_counter}\tTotal Games: {params["total_games"]}\tEpsilon: {round(bot.epsilon, 6)}\tAccurracy: {round(curr_acc, 4)}\tLR: {round(bot.learning_rate, 6)}')
     #plot_scores(game_scores, bot_scores, acc_scores, str(trial.number))
     if bot.test == False and curr_acc > params["target_acc"]:
         model_weights = bot.state_dict()
@@ -240,17 +241,16 @@ if __name__ == '__main__':
     ### RAY TUNE SETUP ###
     ######################
     search_space = {
-        "lr": tune.loguniform(1e-5, 1e-1),
-        "decay": tune.loguniform(1e-3, 5e-1),
-        "epsilon": tune.uniform(1e-2, 0.5),
-        "ngates": tune.randint(2, 7),
-        "optimizer": tune.choice(["Adam", "RMSprop", "SGD"]),
-	    "ngames": tune.randint(250, 1000),
+        "lr": tune.loguniform(1e-6, 1e-4),
+        "decay": tune.loguniform(2e-2, 3e-2),
+        "epsilon": tune.uniform(0.3, 0.55),
+        "ngates": tune.randint(4, 6),
+	    "ngames": tune.randint(350, 400),
         "params": params
     }
 
-    ray.init(num_cpus=192, num_gpus=0)
-    tuner = tune.Tuner(train, param_space=search_space, tune_config=TuneConfig(scheduler=ASHAScheduler(), metric="acc", mode="max", num_samples = 19200, chdir_to_trial_dir=False))
+    ray.init(num_cpus=32, num_gpus=0)
+    tuner = tune.Tuner(train, param_space=search_space, tune_config=TuneConfig(scheduler=ASHAScheduler(), metric="acc", mode="max", num_samples = 256, chdir_to_trial_dir=False))
     
     ####################
     ### RAY ANALYSIS ###
