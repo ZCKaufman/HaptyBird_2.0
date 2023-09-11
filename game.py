@@ -23,10 +23,10 @@ def init_params():
     # Game parameters
     params["game_x_axis"] = 180
     params["game_y_axis"] = 270
-    params["display_scale"] = 3
-    params["game_width"] = params["game_x_axis"] * params["display_scale"]
-    params["game_height"] = params["game_y_axis"] * params["display_scale"]
-    params["cursor_y_axis"] = params["game_height"] - (5 * params["display_scale"])
+    #params["display_scale"] = 3
+    params["game_width"] = params["game_x_axis"]# * params["display_scale"]
+    params["game_height"] = params["game_y_axis"]# * params["display_scale"]
+    params["cursor_y_axis"] = params["game_height"]# - (5 * params["display_scale"])
     params["player_start_x"] = 200
     params["gate_size"] = 20
     params["gate_min_distance"] = 5
@@ -129,7 +129,7 @@ def run_games(params): # Runs the game
     if bot.test == False and curr_acc > params["target_acc"]:
         model_weights = bot.state_dict()
         torch.save(model_weights, bot.weights_path)
-        print(f'Weights saved, finished with higher accuracy\nCurrent: {curr_acc}\nPrevious Best: {prev_acc}')
+        print(f'Weights saved, finished with higher accuracy\nCurrent: {curr_acc}\A Best: {curr_acc}')
     elif bot.test:
         print("Finished testing.")
     else:
