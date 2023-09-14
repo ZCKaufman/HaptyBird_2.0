@@ -19,7 +19,7 @@ DEVICE = "cpu"
 def init_params():
     params = dict()
     # Bot NN parameters (adapted largely from https://github.com/maurock/snake-ga/tree/master)
-    params['total_games'] = 250
+    params['total_games'] = 300 #396
     # Game parameters
     params["game_x_axis"] = 180
     params["game_y_axis"] = 270
@@ -31,10 +31,18 @@ def init_params():
     params["gate_size"] = 20
     params["gate_min_distance"] = 5
     params["gate_cushion"] = 1
+    params["ngates"] = 4
     # Data parameters
     params['plot_score'] = True
-    params["attempt"] = 10
-    params["target_acc"] = -10
+    params["target_acc"] = -.75 
+    # Reward Params
+    params["PGate"] = 10
+    params["NGate"] = -10
+    params["WallHit"] = -30
+    params["PDir"] = 0.1
+    params["NDir"] = -0.1
+    params["PRange"] = 0.2
+    params["NRange"] = -0.2
     return params
 
 def run_games(params): # Runs the game
@@ -42,7 +50,7 @@ def run_games(params): # Runs the game
     bot = HaptyBot(params)
     bot.to(DEVICE)
     player = HaptyBot(params) # Eventually switch to Player class
-    bot.optimizer = opt.Adam(bot.parameters(), weight_decay=0, lr=bot.learning_rate)
+    bot.optimizer = opt.SGD(bot.parameters(), weight_decay=0, lr=bot.learning_rate)
     # Training stuff
 
     gates_passed = 0
@@ -69,8 +77,8 @@ def run_games(params): # Runs the game
 
         # Begin game and display (if applicable)
         init_state = game.get_state(player, bot, gate)
-        init_move = player.move(params, init_state)
-        init_reward = bot.get_reward(init_move, init_state)
+        init_move = bot.move(params, init_state)
+        init_reward = bot.get_reward([False], init_state, params)
         secondary_state = game.get_state(player, bot, gate)
         bot.remember(init_state, initial_action, init_reward, secondary_state, False)
         bot.train_LT_memory()
@@ -81,14 +89,14 @@ def run_games(params): # Runs the game
         games_counter += 1 
         # Run the game until a gate has been hit
         steps = 0
-        while(gates_passed % 5 != 0 or gates_passed == 0):
+        while(gates_passed % params["ngates"] != 0 or gates_passed == 0):
             # Reset crash records
             player.crash = False
             bot.crash = False
 
             # If training, begin with high epsilon and work up, else use param epsilon
             if bot.test == False:
-                bot.epsilon = max(0, (1 - (games_counter * bot.epsilon_decay))) + bot.deploy_epsilon
+                bot.epsilon = (max(0, (1 - (games_counter * bot.epsilon_decay)))) + bot.deploy_epsilon
             else:
                 bot.epsilon = bot.deploy_epsilon
 
@@ -108,7 +116,7 @@ def run_games(params): # Runs the game
             new_state = game.get_state(player, bot, gate)
             # Set scores and/or rewards as relevant
             if(bot.test == False):
-                reward = bot.get_reward(bot_hit, new_state)
+                reward = bot.get_reward(bot_hit, new_state, params)
                 bot.train_ST_memory(state, bot_move, reward, new_state, bot_hit[0])
                 bot.remember(state, bot_move, reward, new_state, bot_hit[0])
             if(player_hit[0] or bot_hit[0]):
@@ -121,11 +129,12 @@ def run_games(params): # Runs the game
                 pygame.time.wait(params["speed"]) # Slows down game for viewing
 
             steps += 1
-        curr_acc = bot.score / games_counter
+        curr_acc = bot.score / (params["ngates"] * 3 * games_counter)
         acc_scores.append(curr_acc)
-        game_scores.append(sum(bot_scores[-5:]))
-        print(f'Game {games_counter}\tBot: {sum(bot_scores[-5:])}, {bot.score}\tPlayer: {sum(player_scores[-5:])}, {player.score}\tEpsilon: {round(bot.epsilon, 2)}\tAccurracy: {round(curr_acc, 4)}')
-    plot_scores(game_scores, bot_scores, acc_scores, params["attempt"])
+        game_scores.append(sum(bot_scores[-params["ngates"]:]))
+        if(games_counter % 10 == 0):
+            print(f'Game: {games_counter}\tTotal Games: {params["total_games"]}\tEpsilon: {round(bot.epsilon, 6)}\tAccurracy: {round(curr_acc, 4)}\tHits: {bot.pgate}, {bot.wall}, {bot.ngate}')
+    #plot_scores(game_scores, bot_scores, acc_scores, str(trial.number))
     if bot.test == False and curr_acc > params["target_acc"]:
         model_weights = bot.state_dict()
         torch.save(model_weights, bot.weights_path)
@@ -189,25 +198,6 @@ class Game:
     def get_state(self, player, bot, gate):
         # This state is used to train the bot, if modified it will break things
         pos_gate = gate.pos_gate[0]
-        '''state = [
-            # Player state stats
-            player.x not in pos_gate, # Is the player in danger
-            player.x < pos_gate[0], # Gate right
-            player.x > pos_gate[-1], # Gate left
-            player.x in pos_gate, # In gate range
-            player.x_change == -1,  # move left
-            player.x_change == 1,  # move right
-            player.x_change == 0, # Stay still
-
-            # Bot state stats
-            bot.x not in pos_gate, # Is the player in danger
-            bot.x < pos_gate[0], # Gate right
-            bot.x > pos_gate[-1], # Gate left
-            bot.x in pos_gate, # In gate range
-            bot.x_change == -1,  # move left
-            bot.x_change == 1,  # move right
-            bot.x_change == 0 # Stay still
-        ]'''
 
         state = [
             # Bot state stats
