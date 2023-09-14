@@ -256,18 +256,18 @@ if __name__ == '__main__':
     ### RAY TUNE SETUP ###
     ######################
     search_space = {
-        "PGate": tune.uniform(0, 1000),
-        "NGate": tune.uniform(-1000, 0),
-        "WallHit": tune.uniform(-1000, 0),
-        "PDir": tune.uniform(0, 1000),
-        "NDir": tune.uniform(-1000, 0),
-        "PRange": tune.uniform(0, 1000),
-        "NRange": tune.uniform(-1000, 0),
+        "PGate": tune.uniform(0, 200),
+        "NGate": tune.uniform(-200, 0),
+        "WallHit": tune.uniform(-200, 0),
+        "PDir": tune.uniform(0, 200),
+        "NDir": tune.uniform(-200, 0),
+        "PRange": tune.uniform(0, 200),
+        "NRange": tune.uniform(-200, 0),
         "params": params
     }
 
-    ray.init(num_cpus=32, num_gpus=0)
-    tuner = tune.Tuner(train, param_space=search_space, tune_config=TuneConfig(scheduler=ASHAScheduler(), metric="acc", mode="max", num_samples = 128, chdir_to_trial_dir=False))
+    ray.init(num_cpus=96, num_gpus=0)
+    tuner = tune.Tuner(train, param_space=search_space, tune_config=TuneConfig(scheduler=ASHAScheduler(), metric="acc", mode="max", num_samples = 12400, max_concurrent_trials=96, chdir_to_trial_dir=False))
     
     ####################
     ### RAY ANALYSIS ###
