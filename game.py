@@ -19,7 +19,7 @@ DEVICE = "cpu"
 def init_params():
     params = dict()
     # Bot NN parameters (adapted largely from https://github.com/maurock/snake-ga/tree/master)
-    params['total_games'] = 300 #396
+    params['total_games'] = 100 #396
     # Game parameters
     params["game_x_axis"] = 180
     params["game_y_axis"] = 270
@@ -28,17 +28,17 @@ def init_params():
     params["game_height"] = params["game_y_axis"]# * params["display_scale"]
     params["cursor_y_axis"] = params["game_height"]# - (5 * params["display_scale"])
     params["player_start_x"] = 200
-    params["gate_size"] = 20
+    params["gate_size"] = 18 # 10% of x axis
     params["gate_min_distance"] = 5
     params["gate_cushion"] = 1
     params["ngates"] = 4
     # Data parameters
     params['plot_score'] = True
-    params["target_acc"] = -.75 
+    params["target_acc"] = 0.101 # Above random chance
     # Reward Params
     params["PGate"] = 10
     params["NGate"] = -10
-    params["WallHit"] = -30
+    params["WallHit"] = -10
     params["PDir"] = 0.1
     params["NDir"] = -0.1
     params["PRange"] = 0.2
@@ -83,6 +83,11 @@ def run_games(params): # Runs the game
         bot.remember(init_state, initial_action, init_reward, secondary_state, False)
         bot.train_LT_memory()
 
+        if bot.test == False and games_counter >= 1:
+            bot.epsilon -= bot.epsilon_decay
+            if bot.epsilon < bot.deploy_epsilon:
+                bot.epsilon = bot.deploy_epsilon
+
         if params["display"]:
             game.render(player, bot, gate)
 
@@ -93,12 +98,6 @@ def run_games(params): # Runs the game
             # Reset crash records
             player.crash = False
             bot.crash = False
-
-            # If training, begin with high epsilon and work up, else use param epsilon
-            if bot.test == False:
-                bot.epsilon = (max(0, (1 - (games_counter * bot.epsilon_decay)))) + bot.deploy_epsilon
-            else:
-                bot.epsilon = bot.deploy_epsilon
 
             player_hit, bot_hit = gate.update_y(params, player, bot, game)
             # Move gate downwards
@@ -129,11 +128,11 @@ def run_games(params): # Runs the game
                 pygame.time.wait(params["speed"]) # Slows down game for viewing
 
             steps += 1
-        curr_acc = bot.score / (params["ngates"] * 3 * games_counter)
+        curr_acc = 1+((bot.score - (params["ngates"] * games_counter)) / ( (params["ngates"] * games_counter)))
         acc_scores.append(curr_acc)
-        game_scores.append(sum(bot_scores[-params["ngates"]:]))
-        if(games_counter % 10 == 0):
-            print(f'Game: {games_counter}\tTotal Games: {params["total_games"]}\tEpsilon: {round(bot.epsilon, 6)}\tAccurracy: {round(curr_acc, 4)}\tHits: {bot.pgate}, {bot.wall}, {bot.ngate}')
+        #game_scores.append(sum(bot_scores[-params["ngates"]:]))
+        if(games_counter % 1 == 0):
+            print(f'Game: {games_counter}\tPred: {bot.prediction_count}\tEpsilon: {round(bot.epsilon, 6)}\tAccurracy: {round(curr_acc, 4)}\tHits: {bot.pgate}, {bot.wall}, {bot.ngate}\tMem: {len(bot.memory)}')
     #plot_scores(game_scores, bot_scores, acc_scores, str(trial.number))
     if bot.test == False and curr_acc > params["target_acc"]:
         model_weights = bot.state_dict()
@@ -149,12 +148,9 @@ def score(user, gate_interact):
     if(gate_interact[1] == 1):
         user.score += 1
         return 1
-    elif(gate_interact[1] == 0):
-        user.score -= 1
-        return -1
     elif(gate_interact[1] == -1):
-        user.score -= 3
-        return -3
+        user.score -= 0
+        return 0
     
 def plot_scores(game_scores, bot_scores, acc_scores, attempt):
     x = len(bot_scores)

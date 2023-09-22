@@ -18,7 +18,7 @@ class HaptyBot(torch.nn.Module):
         # Training Parameters
         self.test = False
         self.learning_rate = 0.0001
-        self.memory_size = 10000
+        self.memory_size = 25000
         self.first_layer = 10
         self.second_layer = 8
         self.third_layer = 6
@@ -43,6 +43,7 @@ class HaptyBot(torch.nn.Module):
         self.wall = 0
         self.pgate = 0
         self.ngate = 0
+        self.prev_move = [1, 1, 1]
 
         ### NETWORK CREATION ###
         self.f1 = nn.Linear(7, self.first_layer)
@@ -67,13 +68,9 @@ class HaptyBot(torch.nn.Module):
             if(hit[1] == 1): # Went through correct gate
                 self.reward = params["PGate"]
                 self.pgate += 1
-            elif(hit[1] == 0): # Went through wrong gate
-                self.ngate += 1
-                #self.reward = params["NGate"]
-                self.reward = params["WallHit"]
-            if(hit[1] == -1): # Hit a wall
-                self.reward = params["WallHit"]
+            elif(hit[1] == 0 or hit[1] == -1): # Went through wrong gate
                 self.wall += 1
+                self.reward = params["WallHit"]
             return self.reward
         '''else: # CONCERN: Should I be using only ifs, multiple of these may be true so they should stack
             if state[1] and state[-2]: # Gate is right and bot moved right
@@ -91,14 +88,15 @@ class HaptyBot(torch.nn.Module):
     def move(self, params, state):
         move = [0, 0, 0]
         if random.uniform(0, 1) < self.epsilon:
-                move = np.eye(3)[randint(0,2)]
+            move = np.eye(3)[randint(0,2)]
         else:
             self.prediction_count += 1
             with torch.no_grad():
                 prev_state_tensor = torch.tensor(state, dtype=torch.float32).to(DEVICE)
                 prediction = self.forward(prev_state_tensor)
                 move = np.eye(3)[np.argmax(prediction.detach().cpu().numpy()[0])]
-            #print(move, prediction)
+        
+        self.prev_move = move
 
         if np.array_equal(move, [1, 0, 0]) or self.x < 0 or self.x > params["game_height"]: # stay
             #print("Stay")
