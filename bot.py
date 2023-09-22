@@ -24,7 +24,7 @@ class HaptyBot(torch.nn.Module):
         self.third_layer = 6
         # Training variables
         self.reward = 0
-        self.gamma = 0.9 # Figure out what this is
+        self.gamma = 0.9
         self.prediction_count = 0      
         self.epsilon = 1
         self.epsilon_decay = 0.0273
@@ -98,15 +98,15 @@ class HaptyBot(torch.nn.Module):
         
         self.prev_move = move
 
-        if np.array_equal(move, [1, 0, 0]) or self.x < 0 or self.x > params["game_height"]: # stay
+        if np.array_equal(move, [1, 0, 0]): # stay
             #print("Stay")
             self.x = self.x # Stay, also activated when bot is trying to go through border
             self.x_change = 0
-        elif np.array_equal(move, [0, 1, 0]):  # right
+        elif np.array_equal(move, [0, 1, 0]) and not self.x >= params["game_width"]:  # right
             #print("Right")
             self.x += 1
             self.x_change = 1
-        elif np.array_equal(move, [0, 0, 1]):  # left
+        elif np.array_equal(move, [0, 0, 1]) and not self.x <= 0:  # left
             #print("Left")
             self.x -= 1
             self.x_change = -1

@@ -83,7 +83,7 @@ def run_games(params): # Runs the game
         bot.remember(init_state, initial_action, init_reward, secondary_state, False)
         bot.train_LT_memory()
 
-        if bot.test == False and games_counter >= 1:
+        if bot.test == False and games_counter >= 5:
             bot.epsilon -= bot.epsilon_decay
             if bot.epsilon < bot.deploy_epsilon:
                 bot.epsilon = bot.deploy_epsilon
@@ -132,7 +132,7 @@ def run_games(params): # Runs the game
         acc_scores.append(curr_acc)
         #game_scores.append(sum(bot_scores[-params["ngates"]:]))
         if(games_counter % 1 == 0):
-            print(f'Game: {games_counter}\tPred: {bot.prediction_count}\tEpsilon: {round(bot.epsilon, 6)}\tAccurracy: {round(curr_acc, 4)}\tHits: {bot.pgate}, {bot.wall}, {bot.ngate}\tMem: {len(bot.memory)}')
+            print(f'Game: {games_counter}\tPos: {bot.x}\tEpsilon: {round(bot.epsilon, 6)}\tAccurracy: {round(curr_acc, 4)}\tHits: {bot.pgate}, {bot.wall}\tMem: {len(bot.memory)}')
     #plot_scores(game_scores, bot_scores, acc_scores, str(trial.number))
     if bot.test == False and curr_acc > params["target_acc"]:
         model_weights = bot.state_dict()
