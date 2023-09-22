@@ -1,0 +1,20 @@
+#!/bin/bash
+
+#SBATCH -J kaufmazc
+#SBATCH -p general
+#SBATCH -o kaufmazc_out.txt
+#SBATCH -e kaufmazc_err.txt
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=kaufmazc@iu.edu
+#SBATCH --nodes=1
+#SBATCH --ntasks=32
+#SBATCH --cpus-per-task=1
+#SBATCH --time=48:00:00
+#SBATCH --mem=32G
+#SBATCH -A r00250
+
+
+
+module load python/3.10.5
+pip install -U -r requirements.txt
+python3 game.py

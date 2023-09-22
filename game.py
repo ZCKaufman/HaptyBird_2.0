@@ -11,6 +11,11 @@ from player import Player
 from gate import Gate
 import datetime
 import time
+import ray
+from ray import tune
+from ray.tune import TuneConfig
+from ray.air import Checkpoint, session
+from ray.tune.schedulers import ASHAScheduler
 
 DEVICE = "cpu"
 
@@ -34,7 +39,7 @@ def init_params():
     params["ngates"] = 4
     # Data parameters
     params['plot_score'] = True
-    params["target_acc"] = 0.101 # Above random chance
+    params["target_acc"] = 1.101 # Above random chance
     # Reward Params
     params["PGate"] = 10
     params["NGate"] = -10
@@ -45,7 +50,8 @@ def init_params():
     params["NRange"] = -0.2
     return params
 
-def run_games(params): # Runs the game
+def train(config): # Runs the game
+    params = config["params"]
     pygame.init()
     bot = HaptyBot(params)
     bot.to(DEVICE)
@@ -60,6 +66,9 @@ def run_games(params): # Runs the game
     acc_scores = []
     player_scores = []
     curr_acc = 0
+
+    ### RAY TUNE ###
+    bot.gamma = config["gamma"]
 
     initial_action = [1, 0, 0] # Stay still as initial action
 
@@ -138,11 +147,12 @@ def run_games(params): # Runs the game
         model_weights = bot.state_dict()
         torch.save(model_weights, bot.weights_path)
         print(f'Weights saved, finished with higher accuracy\nCurrent: {curr_acc}\A Best: {curr_acc}')
-    elif bot.test:
-        print("Finished testing.")
-    else:
-        print(f'Finished with lower accuracy\nCurrent: {curr_acc}\nTarget: {params["target_acc"]}')
-    return
+    #elif bot.test:
+    #    print("Finished testing.")
+    #else:
+    #    print(f'Finished with lower accuracy\nCurrent: {curr_acc}\nTarget: {params["target_acc"]}')
+    #return
+    session.report({"acc": curr_acc})
 
 def score(user, gate_interact):
     if(gate_interact[1] == 1):
@@ -223,7 +233,41 @@ if __name__ == '__main__':
     print("Args", args)
     params['display'] = args.display
     params['speed'] = args.speed
-    run_games(params)
+    
+    ######################
+    ### RAY TUNE SETUP ###
+    ######################
+    search_space = {
+        "gamma": tune.randint(0, 1),
+	"params": params
+    }
+
+    ray.init(num_cpus=32, num_gpus=0)
+    tuner = tune.Tuner(train, param_space=search_space, tune_config=TuneConfig(scheduler=ASHAScheduler(), metric="acc", mode="max", num_samples = 512, max_concurrent_trials=32, chdir_to_trial_dir=False))
+    
+    ####################
+    ### RAY ANALYSIS ###
+    ####################
+
+    results = tuner.fit()
+    best_result = results.get_best_result()
+    print("---Trial results---\n", results)
+    print("---Current Best results---\n", best_result)
+
+    '''for i, result in enumerate(results):
+        if result.error:
+            print(f"Trial #{i} had an error:", result.error)
+            continue
+
+        print(
+            f"Trial #{i} finished successfully with a mean accuracy metric of:",
+            result.metrics["mean_accuracy"]
+        )'''
+
+    results_df = results.get_dataframe()
+
+    results_df.to_csv("results.csv")
+
 
     end_time = time.time()
     print("Time ended")
