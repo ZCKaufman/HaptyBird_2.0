@@ -68,16 +68,15 @@ def train(config): # Runs the game
     curr_acc = 0
 
     ### RAY TUNE ###
-    bot.gamma = config["gamma"]
 
     initial_action = [1, 0, 0] # Stay still as initial action
 
     while(games_counter < params["total_games"]):
         # Check if the game has been ended by user
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                quit()
+        #for event in pygame.event.get():
+        #    if event.type == pygame.QUIT:
+        #        pygame.quit()
+        #        quit()
         # Create a game, a player, and a gate
         game = Game(params["game_width"], params["game_height"]) # Width, Height
         #player = Player(params) 
@@ -92,13 +91,13 @@ def train(config): # Runs the game
         bot.remember(init_state, initial_action, init_reward, secondary_state, False)
         bot.train_LT_memory()
 
-        if bot.test == False and games_counter >= 5:
+        if bot.test == False and games_counter >= config["decay_pt"]:
             bot.epsilon -= bot.epsilon_decay
             if bot.epsilon < bot.deploy_epsilon:
                 bot.epsilon = bot.deploy_epsilon
 
-        if params["display"]:
-            game.render(player, bot, gate)
+        #if params["display"]:
+        #    game.render(player, bot, gate)
 
         games_counter += 1 
         # Run the game until a gate has been hit
@@ -132,16 +131,16 @@ def train(config): # Runs the game
                 bot_scores.append(score(bot, bot_hit))
                 #break
 
-            if params['display']:
-                game.render(player, bot, gate)
-                pygame.time.wait(params["speed"]) # Slows down game for viewing
+            #if params['display']:
+            #    game.render(player, bot, gate)
+            #    pygame.time.wait(params["speed"]) # Slows down game for viewing
 
             steps += 1
         curr_acc = 1+((bot.score - (params["ngates"] * games_counter)) / ( (params["ngates"] * games_counter)))
         acc_scores.append(curr_acc)
         #game_scores.append(sum(bot_scores[-params["ngates"]:]))
-        if(games_counter % 1 == 0):
-            print(f'Game: {games_counter}\tPos: {bot.x}\tEpsilon: {round(bot.epsilon, 6)}\tAccurracy: {round(curr_acc, 4)}\tHits: {bot.pgate}, {bot.wall}\tMem: {len(bot.memory)}')
+        if(games_counter % 10 == 0):
+            print(f'Game: {games_counter}\tDecPt: {config["decay_pt"]}\tEpsilon: {round(bot.epsilon, 6)}\tAccurracy: {round(curr_acc, 4)}\tHits: {bot.pgate}, {bot.wall}\tMem: {len(bot.memory)}')
     #plot_scores(game_scores, bot_scores, acc_scores, str(trial.number))
     if bot.test == False and curr_acc > params["target_acc"]:
         model_weights = bot.state_dict()
@@ -171,10 +170,10 @@ def plot_scores(game_scores, bot_scores, acc_scores, attempt):
 
 class Game:
     def __init__(self, width, height):
-        pygame.display.set_caption("HaptyBird 2.0")
+        #pygame.display.set_caption("HaptyBird 2.0")
         self.game_width = width
         self.game_height = height
-        self.surface = pygame.display.set_mode((width, height))
+        #self.surface = pygame.display.set_mode((width, height))
         self.background = pygame.image.load("imgs/background.jpg")
         
     def render(self, player, bot, gate):
@@ -196,10 +195,10 @@ class Game:
         # Game display
         pygame.draw.circle(self.surface, "blue", (player.x, player.y), 5) # Player cursor
         pygame.draw.circle(self.surface, "red", (bot.x, bot.y), 5) # Bot cursor
-        gate.display(params, self) # Gate is complex, it has to draw itself
+        #gate.display(params, self) # Gate is complex, it has to draw itself
 
-        pygame.display.update()
-        pygame.event.get()
+        #pygame.display.update()
+        #pygame.event.get()
 
     def get_state(self, player, bot, gate):
         # This state is used to train the bot, if modified it will break things
@@ -238,12 +237,12 @@ if __name__ == '__main__':
     ### RAY TUNE SETUP ###
     ######################
     search_space = {
-        "gamma": tune.randint(0, 1),
-	"params": params
+        "decay_pt": tune.randint(1, 21),
+	    "params": params
     }
 
-    ray.init(num_cpus=32, num_gpus=0)
-    tuner = tune.Tuner(train, param_space=search_space, tune_config=TuneConfig(scheduler=ASHAScheduler(), metric="acc", mode="max", num_samples = 512, max_concurrent_trials=32, chdir_to_trial_dir=False))
+    ray.init(num_cpus=24, num_gpus=0, ignore_reinit_error=True)
+    tuner = tune.Tuner(train, param_space=search_space, tune_config=TuneConfig(scheduler=ASHAScheduler(), metric="acc", mode="max", num_samples = 48, chdir_to_trial_dir=False))
     
     ####################
     ### RAY ANALYSIS ###
@@ -253,16 +252,6 @@ if __name__ == '__main__':
     best_result = results.get_best_result()
     print("---Trial results---\n", results)
     print("---Current Best results---\n", best_result)
-
-    '''for i, result in enumerate(results):
-        if result.error:
-            print(f"Trial #{i} had an error:", result.error)
-            continue
-
-        print(
-            f"Trial #{i} finished successfully with a mean accuracy metric of:",
-            result.metrics["mean_accuracy"]
-        )'''
 
     results_df = results.get_dataframe()
 

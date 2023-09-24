@@ -24,7 +24,7 @@ class HaptyBot(torch.nn.Module):
         self.third_layer = 6
         # Training variables
         self.reward = 0
-        self.gamma = 0.9
+        self.gamma = 0.9226178066897573
         self.prediction_count = 0      
         self.epsilon = 1
         self.epsilon_decay = 0.0273

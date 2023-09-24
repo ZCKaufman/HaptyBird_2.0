@@ -7,3 +7,4 @@ datetime
 pandas
 optuna
 seaborn
+ray[tune]

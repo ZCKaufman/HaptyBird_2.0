@@ -136,5 +136,5 @@ class Gate:
         else:
             #print("Ys:", self.y, self.y * params["display_scale"], player.y)
             self.y += 1
-            self.display(params, game)
+            #self.display(params, game)
             return player_output, bot_output
