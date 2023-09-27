@@ -6,150 +6,150 @@ import torch.nn.functional as F
 import numpy as np
 import pandas as pd
 import random
-import collections
 from random import randint
 
 DEVICE = "cpu"
 
-class HaptyBot(torch.nn.Module):
-    def __init__(self, params):
-        super().__init__()
-        ### PARAMETERS AND VARIABLES ###
-        # Training Parameters
-        self.test = False
-        self.learning_rate = 0.0001
-        self.memory_size = 25000
-        self.first_layer = 10
-        self.second_layer = 8
-        self.third_layer = 6
-        # Training variables
-        self.reward = 0
-        self.gamma = 0.9
-        self.prediction_count = 0      
-        self.epsilon = 1
-        self.epsilon_decay = 0.0273
-        self.memory = collections.deque(maxlen=self.memory_size)
-        self.optimizer = None
-        # Deployment Parameters
-        self.x = 100 # Starting position
-        self.y = params["cursor_y_axis"]
-        self.deploy_epsilon = 0.3731
-        self.x_change = 1 # Arbitrarily begin by going right
-        # Training AND Deployment Parameters/Variables
+class HaptyBaby():
+    def __init__(self, params, first_gen = True, mutant = False, child = False, parent1 = None, parent2 = None):
+        ### INPUT: Params
+        ### OUTPUT: None
+        ### DESCRIPTION: Generates a baby bot. Could be a first generation, mutated, or child. 
+
+        # GENETIC VARIABLES #
+        self.alive = True
+        self.fitness = 0
+        self.best = False 
+        self.input_weights = []
+        self.chromosome = []
+        self.first_gen = not (mutant or child)
+        self.mutant = mutant # One parent (self)
+        self.child = child # Two parents
+        self.parent1 = parent1
+        self.parent2 = parent2
+
+        # GAME RELATED VARIABLES #
+        self.x = np.floor(params["game_width"] / 2)
+        self.y = params["cursor_y"]
+        self.x_change = 0 # Arbitrarily begin by staying still
+        self.prev_move = 0
+        self.dist_left = 0
+        self.dist_right = 0
+        self.dist_y = 0
+
+        # GAME STATISTICS #
         self.score = 0
+
+        # WEIGHTS #
         self.weights_path = "weights/weights.h5"
         self.weights = self.weights_path
         self.load_weights = False
-        self.wall = 0
-        self.pgate = 0
-        self.ngate = 0
-        self.prev_move = [1, 1, 1]
 
-        ### NETWORK CREATION ###
-        self.f1 = nn.Linear(7, self.first_layer)
-        self.f2 = nn.Linear(self.first_layer, self.second_layer)
-        self.f3 = nn.Linear(self.second_layer, self.third_layer)
-        self.f4 = nn.Linear(self.third_layer, 3)
-        if self.load_weights:
-            self.model = self.load_state_dict(torch.load(self.weights))
+        self.set_weights()
 
-    def forward(self, x):
-        x = F.relu(self.f1(x))
-        x = F.relu(self.f2(x))
-        x = F.relu(self.f3(x))
-        x = F.softmax(self.f4(x), dim=-1)
-        return x
+    def update_state(self, wall):
+        self.dist_left = wall.left - self.x
+        self.dist_right = wall.right - self.x
+        self.dist_y = self.y - wall.y
+        self.fitness += 0.01
 
-    # Training methods
-    # This is NOT to be confused with score() which is part of the game process, reward() is part of training
-    def get_reward(self, hit, state, params): 
-        self.reward = 0
-        if hit[0]:
-            if(hit[1] == 1): # Went through correct gate
-                self.reward = params["PGate"]
-                self.pgate += 1
-            elif(hit[1] == 0 or hit[1] == -1): # Went through wrong gate
-                self.wall += 1
-                self.reward = params["WallHit"]
-            return self.reward
-        '''else: # CONCERN: Should I be using only ifs, multiple of these may be true so they should stack
-            if state[1] and state[-2]: # Gate is right and bot moved right
-                self.reward = params["PDir"]
-            elif state[2] and state[-3]: # Gate is left and bot moved left
-                self.reward = params["PDir"]
-            elif state[1] and (state[-3] or state[-1]): # Gate is right but bot moved left or stayed still
-                self.reward = params["NDir"]
-            elif state[2] and (state[-2] or state[-1]): # Gate is left but bot moved right or stayed still
-                self.reward = params["NDir"]
-            elif state[3]: # Bot is within gate range
-                self.reward = params["PRange"] '''
-        return self.reward
-    
-    def move(self, params, state):
-        move = [0, 0, 0]
-        if random.uniform(0, 1) < self.epsilon:
-            move = np.eye(3)[randint(0,2)]
+    def collision(self, wall):
+        if self.x > wall.left and self.x < wall.right:
+            self.score += 1
+            self.fitness += 3
         else:
-            self.prediction_count += 1
-            with torch.no_grad():
-                prev_state_tensor = torch.tensor(state, dtype=torch.float32).to(DEVICE)
-                prediction = self.forward(prev_state_tensor)
-                move = np.eye(3)[np.argmax(prediction.detach().cpu().numpy()[0])]
+            self.score -= 1
+            self.fitness -= 1
+            self.alive = False
+
+        if(self.fitness > 25):
+            print("FITNESS:", self.fitness, "\nInput Weights:", self.input_weights, "\nChromosome", self.chromosome)
+
+    def move(self, params):
+        # Set the inputs to state
+        state = [self.x, self.dist_left, self.dist_right, self.dist_y, self.prev_move]
+
+        layer1 = np.dot(state, self.input_weights)
+        layer2 = self.sigmoid(layer1)
+        layer3 = np.dot(layer2, self.chromosome)
+        prediction = self.sigmoid(layer3)
         
-        self.prev_move = move
+        prediction *= 10
 
-        if np.array_equal(move, [1, 0, 0]): # stay
-            #print("Stay")
-            self.x = self.x # Stay, also activated when bot is trying to go through border
-            self.x_change = 0
-        elif np.array_equal(move, [0, 1, 0]) and not self.x >= params["game_width"]:  # right
-            #print("Right")
-            self.x += 1
-            self.x_change = 1
-        elif np.array_equal(move, [0, 0, 1]) and not self.x <= 0:  # left
-            #print("Left")
+        if (prediction < 4.8 and self.x > 0):
             self.x -= 1
-            self.x_change = -1
+            self.prev_move = -1
+        elif (prediction > 5.2 and self.x < params["game_width"]):
+            self.x += 1
+            self.prev_move = 1
+        else:
+            self.x = self.x
+            self.prev_move = 0
 
-        return move
+    def set_weights(self):
+        if (self.first_gen):
+            # Random weights
+            #self.input_weights = np.random.normal(0, scale= 0.1, size=(5, 3))
+            #self.chromosome = np.random.normal(0, scale= 0.1, size=(3, 1))
+            ### BEST WEIGHTS FROM 10px GATE TEST ###
+            self.input_weights = [[-0.01572139, -0.00014979, -0.04699315],
+                                  [ 0.05429675,  0.08004009, -0.14883687],
+                                  [ 0.10073824,  0.02843912, -0.12059924],
+                                  [ 0.06483879, -0.05003437,  0.10489026],
+                                  [ 0.03245795, -0.01103673, -0.07928332]]
+            self.chromosome = [[ 0.06687147],
+                               [ 0.20124943],
+                               [-0.21951167]]
+            self.mutate()
+        if (self.mutant):
+            self.input_weights = self.parent1.input_weights
+            self.chromosome = self.parent1.chromosome
+            self.mutate()
 
-    def remember(self, state, action, reward, next_state, done):
-        self.memory.append((state, action, reward, next_state, done))
-        return
-    
-    def train_LT_memory(self):
-        for state, action, reward, next_state, done, in self.memory:
-            self.train()
-            torch.set_grad_enabled(True)
-            target = reward
-            next_state_tensor = torch.tensor(next_state.reshape((1, 7)), dtype=torch.float32).to(DEVICE)
-            state_tensor = torch.tensor(state.reshape((1, 7)), dtype=torch.float32, requires_grad=True).to(DEVICE)
-            if not done:
-                target = reward + self.gamma * torch.max(self.forward(next_state_tensor[0]))
-            output = self.forward(state_tensor)
-            target_f = output.clone()
-            target_f[0][np.argmax(action)] = target
-            target_f.detach()
-            self.optimizer.zero_grad()
-            loss = F.mse_loss(output, target_f)
-            loss.backward()
-            self.optimizer.step()
+        if (self.child):
+            # Begin with random weights and then breed
+            self.input_weights = np.random.normal(0, scale= 0.1, size=(5, 3))
+            self.chromosome = np.random.normal(0, scale= 0.1, size=(3, 1))
+            self.breed()
+            self.mutate(0.01)
 
-    def train_ST_memory(self, state, action, reward, next_state, done):
-        self.train()
-        torch.set_grad_enabled(True)
-        target = reward
-        next_state_tensor = torch.tensor(next_state.reshape((1, 7)), dtype=torch.float32).to(DEVICE)
-        state_tensor = torch.tensor(state.reshape((1, 7)), dtype=torch.float32, requires_grad=True).to(DEVICE)
-        if not done:
-            target = reward + self.gamma * torch.max(self.forward(next_state_tensor[0]))
-        output = self.forward(state_tensor)
-        target_f = output.clone()
-        target_f[0][np.argmax(action)] = target
-        target_f.detach()
-        self.optimizer.zero_grad()
-        loss = F.mse_loss(output, target_f)
-        loss.backward()
-        self.optimizer.step()
+    def mutate(self, MR = 0.05):
+        mutation_rate = MR
+        for i in range(len(self.input_weights)):
+            for j in range(len(self.input_weights[i])):
+                gene_code = random.randint(0, 100) * 0.01
+                if (gene_code < mutation_rate):
+                    learning_rate = random.randint(0, 10) * 0.005
+                    even = random.randint(0, 2)
+                    if(even):
+                        self.input_weights[i][j] += learning_rate
+                    else:
+                        self.input_weights[i][j] += -1 * learning_rate
+
+        for i in range(len(self.chromosome)):
+            for j in range(len(self.chromosome[i])):
+                gene_code = random.randint(0, 100) * 0.01
+                if (gene_code < mutation_rate):
+                    learning_rate = random.randint(0, 10) * 0.005
+                    even = random.randint(0, 2)
+                    if(even):
+                        self.chromosome[i][j] += learning_rate
+                    else:
+                        self.chromosome[i][j] += -1 * learning_rate
+
+    def breed(self):
+        for i in range(len(self.input_weights)):
+            for j in range(len(self.input_weights[i])):
+                self.input_weights[i][j] = (self.parent1.input_weights[i][j] + self.parent2.input_weights[i][j]) / 2
+
+        for i in range(len(self.chromosome)):
+            for j in range(len(self.chromosome[i])):
+                self.chromosome[i][j] = (self.parent1.chromosome[i][j] + self.parent2.chromosome[i][j]) / 2
+
+        self.fitness = (self.parent1.fitness + self.parent2.fitness) / 2
+        
+    def sigmoid(self, state):
+        return 1 / (1 + np.exp(-state))
+        
 
     
