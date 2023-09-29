@@ -59,7 +59,7 @@ class HaptyBaby():
             self.fitness += 3
         else:
             self.score -= 1
-            self.fitness -= 1
+            self.fitness -= 3
             self.alive = False
 
         if(self.fitness > 100):
