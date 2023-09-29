@@ -9,7 +9,7 @@ class Wall:
         ### OUTPUT: None
         ### DESCRIPTION: Generates a wall the size of the game at top of screen, and a positive gate within that wall
         self.y = 0 
-        self.gate_width = 10
+        self.gate_width = 5
         self.left = np.random.randint(params["game_width"] * 0.05, (params["game_width"] * 0.95) - self.gate_width)
         self.right = self.left + self.gate_width
 

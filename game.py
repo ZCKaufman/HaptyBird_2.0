@@ -16,6 +16,7 @@ DEVICE = "cpu"
 CURSORS = []
 WALLS = []
 BOTS_TO_BREED = []
+PRIZE_BOTS = []
 GENERATION = 0
 FITNESS = 0
 RUNNING = True
@@ -33,7 +34,7 @@ def init_params():
     params["game_height"] = 270
     params["cursor_y"] = np.floor(params["game_height"] - 5)
     params["gate_size"] = params["game_width"] / 10
-    params["num_generations"] = 64
+    params["num_generations"] = 128
     surface = pygame.display.set_mode((params["game_width"], params["game_height"]))
     return params
 
@@ -92,11 +93,9 @@ def train(params): # Runs the game
     pygame.init()
     global RUNNING, GENERATION, BOTS_TO_BREED, FITNESS
     
-    while (FITNESS < 150): # Training loop, make lower because we just need to see the trend of improvement
+    while (FITNESS < 1000): # Training loop
         GENERATION += 1
 
-        if FITNESS > 50:
-            params["speed"] = 5
         # Check if the game has been ended by user
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -104,6 +103,10 @@ def train(params): # Runs the game
                 quit()
                 
         ### GENERATION ###
+        # Prize Bots
+       # for b in PRIZE_BOTS:
+       #     CURSORS.append(b)
+
         # Breed
         for i in range(0, len(BOTS_TO_BREED) - 1):
             CURSORS.append(HaptyBaby(child=True, parent1=BOTS_TO_BREED[i], parent2=BOTS_TO_BREED[i + 1]))
@@ -128,14 +131,15 @@ def train(params): # Runs the game
             if(not len(WALLS)):
                 WALLS.append(Wall(params))
             else:
-                if(WALLS[-1].y >= 150):
+                if(WALLS[-1].y >= 160):
                     odds = np.random.randint(0, 100)
-                    if(odds <= 10):
+                    if(odds <= 50):
                         WALLS.append(Wall(params))
 
             for c in CURSORS:
-                if c.fitness > FITNESS:
+                if c.fitness > FITNESS:# and c.fitness > 25:
                     FITNESS = c.fitness
+                    #PRIZE_BOTS.append(c)
                 c.update_state(WALLS[0])
                 c.move(params)
             
@@ -154,7 +158,8 @@ def train(params): # Runs the game
             if(WALLS[0].y > params["cursor_y"]):
                 WALLS.pop(0)
 
-            render(params)
+            if (params["display"]):
+                render(params)
 
 if __name__ == '__main__':
     start_time = time.time()

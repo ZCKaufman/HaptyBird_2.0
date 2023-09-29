@@ -62,7 +62,7 @@ class HaptyBaby():
             self.fitness -= 1
             self.alive = False
 
-        if(self.fitness > 25):
+        if(self.fitness > 100):
             print("FITNESS:", self.fitness, "\nInput Weights:", self.input_weights, "\nChromosome", self.chromosome)
 
     def move(self, params):
@@ -92,14 +92,17 @@ class HaptyBaby():
             #self.input_weights = np.random.normal(0, scale= 0.1, size=(5, 3))
             #self.chromosome = np.random.normal(0, scale= 0.1, size=(3, 1))
             ### BEST WEIGHTS FROM 10px GATE TEST ###
-            self.input_weights = [[-0.01572139, -0.00014979, -0.04699315],
+            '''self.input_weights = [[-0.01572139, -0.00014979, -0.04699315],
                                   [ 0.05429675,  0.08004009, -0.14883687],
                                   [ 0.10073824,  0.02843912, -0.12059924],
                                   [ 0.06483879, -0.05003437,  0.10489026],
                                   [ 0.03245795, -0.01103673, -0.07928332]]
             self.chromosome = [[ 0.06687147],
                                [ 0.20124943],
-                               [-0.21951167]]
+                               [-0.21951167]]'''
+            ### BEST WEIGHTS FROM 5px GATE TEST ###
+            self.input_weights = [[-0.01572139, -0.00014979, -0.04699315], [0.05429675, 0.08004009, -0.14883687], [0.10073824, 0.02843912, -0.12059924], [0.06483879, -0.05003437, 0.10489026], [0.03245795, -0.01103673, -0.07928332]] 
+            self.chromosome = [[0.06687147], [0.15624943000000002], [-0.21951167]]
             self.mutate()
         if (self.mutant):
             self.input_weights = self.parent1.input_weights
@@ -111,7 +114,7 @@ class HaptyBaby():
             self.input_weights = np.random.normal(0, scale= 0.1, size=(5, 3))
             self.chromosome = np.random.normal(0, scale= 0.1, size=(3, 1))
             self.breed()
-            self.mutate(0.01)
+            self.mutate(0.03)
 
     def mutate(self, MR = 0.05):
         mutation_rate = MR
