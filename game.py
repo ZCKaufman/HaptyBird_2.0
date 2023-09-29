@@ -11,6 +11,11 @@ from player import Player
 from wall import Wall
 import datetime
 import time
+import ray
+from ray import tune
+from ray.tune import TuneConfig
+from ray.air import Checkpoint, session
+from ray.tune.schedulers import ASHAScheduler
 
 DEVICE = "cpu"
 CURSORS = []
@@ -20,8 +25,8 @@ PRIZE_BOTS = []
 GENERATION = 0
 FITNESS = 0
 RUNNING = True
-pygame.display.set_caption("HaptyBird 3.0")
-surface = None
+#pygame.display.set_caption("HaptyBird 3.0")
+#surface = None
 
 def init_params():
     global surface
@@ -34,8 +39,12 @@ def init_params():
     params["game_height"] = 270
     params["cursor_y"] = np.floor(params["game_height"] - 5)
     params["gate_size"] = params["game_width"] / 10
-    params["num_generations"] = 128
-    surface = pygame.display.set_mode((params["game_width"], params["game_height"]))
+    params["num_generations"] = 256
+    # RAY PARAMS
+    params["c_mut_odds"] = 0
+    params["m_mut_odds"] = 0
+    params["f_mut_odds"] = 0
+    params["Generations"] = 0
     return params
 
 def render(params):
@@ -43,6 +52,7 @@ def render(params):
     # May have to move this to something global so it doesnt flicker
     #background = pygame.image.load("imgs/background.jpg")
     current_fit = 0
+    surface = pygame.display.set_mode((params["game_width"], params["game_height"]))
 
     surface.fill("black")
     font = pygame.font.SysFont("Segoe UI", 12)
@@ -89,12 +99,18 @@ def render(params):
     #    time.sleep(params["speed"] * 0.01)
     return
 
-def train(params): # Runs the game
+def train(config): # Runs the game
     pygame.init()
     global RUNNING, GENERATION, BOTS_TO_BREED, FITNESS
+
+    params = config["params"]
+    params["c_mut_odds"] = config["c"]
+    params["m_mut_odds"] = config["m"]
+    params["f_mut_odds"] = config["f"]
     
-    while (FITNESS < 1000): # Training loop
+    while (GENERATION < 500 and FITNESS < 500): # Training loop
         GENERATION += 1
+        params["Generations"] = GENERATION
 
         # Check if the game has been ended by user
         for event in pygame.event.get():
@@ -160,6 +176,7 @@ def train(params): # Runs the game
 
             if (params["display"]):
                 render(params)
+    session.report({"fitness": FITNESS})
 
 if __name__ == '__main__':
     start_time = time.time()
@@ -174,7 +191,23 @@ if __name__ == '__main__':
     print("Args", args)
     params['display'] = args.display
     params['speed'] = args.speed
-    train(params)
+
+    ### RAY TUNE SETUP ###
+    search_space = {
+        "c": tune.uniform(0, 0.10),
+        "m": tune.uniform(0, 0.10),
+        "f": tune.uniform(0, 0.10),
+        "params": params
+    }
+
+    ray.init(num_cpus=24, num_gpus=0, ignore_reinit_error=True)
+    tuner = tune.Tuner(train, param_space=search_space, tune_config=TuneConfig(scheduler=ASHAScheduler(), metric="fitness", mode="max", num_samples=120, chdir_to_trial_dir=False))
+
+    ### RAY RESULTS
+    results = tuner.fit()
+    best_results = results.get_best_result()
+    print("RESULTS\n", results)
+    print("\nBEST RESULT\n", best_results)
 
     end_time = time.time()
     print("Time ended")
