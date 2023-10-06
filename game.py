@@ -29,8 +29,7 @@ RUNNING = True
 #surface = None
 
 def init_params():
-    global surface
-
+    
     params = dict()
     # Bot NN parameters (adapted largely from https://github.com/maurock/snake-ga/tree/master)
     params['total_games'] = 100 #396
@@ -108,15 +107,15 @@ def train(config): # Runs the game
     params["m_mut_odds"] = config["m"]
     params["f_mut_odds"] = config["f"]
     
-    while (GENERATION < 500 and FITNESS < 500): # Training loop
+    while (GENERATION < 500 and FITNESS < 750): # Training loop
         GENERATION += 1
         params["Generations"] = GENERATION
 
         # Check if the game has been ended by user
-        for event in pygame.event.get():
+        '''for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
-                quit()
+                quit()'''
                 
         ### GENERATION ###
         # Prize Bots
