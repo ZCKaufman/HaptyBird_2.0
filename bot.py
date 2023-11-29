@@ -8,13 +8,11 @@ import pandas as pd
 import random
 from random import randint
 
-DEVICE = "cpu"
-
 class HaptyBaby():
     def __init__(self, params, first_gen = True, mutant = False, child = False, parent1 = None, parent2 = None):
         ### INPUT: Params
         ### OUTPUT: None
-        ### DESCRIPTION: Generates a baby bot. Could be a first generation, mutated, or child. 
+        ### DESCRIPTION: Generates a baby bot. Could be a first generation, mutant, or child
 
         # GENETIC VARIABLES #
         self.alive = True
@@ -36,16 +34,12 @@ class HaptyBaby():
         self.dist_left = 0
         self.dist_right = 0
         self.dist_y = 0
+        self.passed = 0
 
         # GAME STATISTICS #
         self.score = 0
 
-        # WEIGHTS #
-        self.weights_path = "weights/weights.h5"
-        self.weights = self.weights_path
-        self.load_weights = False
-
-        self.set_weights()
+        self.set_weights(params)
 
     def update_state(self, wall):
         self.dist_left = wall.left - self.x
@@ -57,13 +51,11 @@ class HaptyBaby():
         if self.x > wall.left and self.x < wall.right:
             self.score += 1
             self.fitness += 3
+            self.passed += 1
         else:
             self.score -= 1
             self.fitness -= 3
             self.alive = False
-
-        if(self.fitness > 100):
-            print("FITNESS:", self.fitness, "\nInput Weights:", self.input_weights, "\nChromosome", self.chromosome)
 
     def move(self, params):
         # Set the inputs to state
@@ -73,48 +65,46 @@ class HaptyBaby():
         layer2 = self.sigmoid(layer1)
         layer3 = np.dot(layer2, self.chromosome)
         prediction = self.sigmoid(layer3)
-        
-        prediction *= 10
 
-        if (prediction < 4.8 and self.x > 0):
+        if (prediction < 0.33 and self.x > 0):
             self.x -= 1
             self.prev_move = -1
-        elif (prediction > 5.2 and self.x < params["game_width"]):
+        elif (prediction > 0.66 and self.x < params["game_width"]):
             self.x += 1
             self.prev_move = 1
         else:
             self.x = self.x
             self.prev_move = 0
 
-    def set_weights(self):
+    def set_weights(self, params):
         if (self.first_gen):
-            # Random weights
-            #self.input_weights = np.random.normal(0, scale= 0.1, size=(5, 3))
-            #self.chromosome = np.random.normal(0, scale= 0.1, size=(3, 1))
-            ### BEST WEIGHTS FROM 10px GATE TEST ###
-            '''self.input_weights = [[-0.01572139, -0.00014979, -0.04699315],
-                                  [ 0.05429675,  0.08004009, -0.14883687],
-                                  [ 0.10073824,  0.02843912, -0.12059924],
-                                  [ 0.06483879, -0.05003437,  0.10489026],
-                                  [ 0.03245795, -0.01103673, -0.07928332]]
-            self.chromosome = [[ 0.06687147],
-                               [ 0.20124943],
-                               [-0.21951167]]'''
-            ### BEST WEIGHTS FROM 5px GATE TEST ###
-            self.input_weights = [[-0.01572139, -0.00014979, -0.04699315], [0.05429675, 0.08004009, -0.14883687], [0.10073824, 0.02843912, -0.12059924], [0.06483879, -0.05003437, 0.10489026], [0.03245795, -0.01103673, -0.07928332]] 
-            self.chromosome = [[0.06687147], [0.15624943000000002], [-0.21951167]]
-            self.mutate()
+            ### RANDOM WEIGHTS ###
+            self.input_weights = np.random.normal(0, scale= 1, size=(5, 3))
+            self.chromosome = np.random.normal(0, scale= 1, size=(3, 1))
+            
+            ### BEST WEIGHTS FROM 3px GATE TEST ###
+            '''self.input_weights = [[ 1.16207883,  1.01545432, -0.00283118],
+                                [ 0.83173914,  0.19157574,  0.71581838],
+                                [ 0.36122383,  0.3609113,   0.69313243],
+                                [ 1.5978324,   0.80427319,  0.73569061],
+                                [ 0.02832473, -0.43192903,  0.22504834]]
+            self.chromosome = [[ 0.02253661],
+                            [-1.49298812],
+                            [ 2.15508238]]'''
+            if(params["train"]):
+                self.mutate(params["f_mut_odds"])
+
         if (self.mutant):
             self.input_weights = self.parent1.input_weights
             self.chromosome = self.parent1.chromosome
-            self.mutate()
+            self.mutate(params["m_mut_odds"])
 
         if (self.child):
             # Begin with random weights and then breed
-            self.input_weights = np.random.normal(0, scale= 0.1, size=(5, 3))
-            self.chromosome = np.random.normal(0, scale= 0.1, size=(3, 1))
+            self.input_weights = np.random.normal(0, scale= 1, size=(5, 3))
+            self.chromosome = np.random.normal(0, scale= 1, size=(3, 1))
             self.breed()
-            self.mutate(0.03)
+            self.mutate(params["c_mut_odds"])
 
     def mutate(self, MR = 0.05):
         mutation_rate = MR
