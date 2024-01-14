@@ -12,6 +12,12 @@ from wall import Wall
 import datetime
 import time
 
+import ray
+from ray import tune
+from ray.tune import TuneConfig
+from ray.air import session
+from ray.tune.schedulers import ASHAScheduler
+
 CURSORS = []
 WALLS = []
 BOTS_TO_BREED = []
@@ -19,7 +25,7 @@ GENERATION = 0
 FITNESS = 0
 RUNNING = True
 pygame.display.set_caption("HaptyBird 3.0")
-surface = None
+#surface = None
 
 def init_params():
     global surface
@@ -31,16 +37,25 @@ def init_params():
     params["cursor_y"] = np.floor(params["game_height"] - 5)
     params["gate_size"] = 3
     params["num_generations"] = 128
-    params["c_mut_odds"] = 0.06718772399427941
-    params["m_mut_odds"] = 0.047894877742536146
-    params["f_mut_odds"] = 0.09902455284411923
+
+    # RAY PARAMS
+    params["c_mut_odds"] = 0
+    params["m_mut_odds"] = 0
+    params["f_mut_odds"] = 0
+    params["first_layer"] = 0
+    params["second_layer"] = 0
+    params["third_layer"] = 0
+    params["fourth_layer"] = 0
+
     params["train"] = True
-    surface = pygame.display.set_mode((params["game_width"], params["game_height"]))
+    #surface = pygame.display.set_mode((params["game_width"], params["game_height"]))
     return params
 
 def render(params):
     global CURSORS, WALLS, GENERATION
     current_fit = 0
+
+    surface = pygame.display.set_mode((params["game_width"], params["game_height"]))
 
     surface.fill("black")
     font = pygame.font.SysFont("Segoe UI", 12)
@@ -123,9 +138,17 @@ def render(params):
     
     return
 
-def train(params): # Runs the game
+def train(config): # Runs the game
     pygame.init()
     global RUNNING, GENERATION, BOTS_TO_BREED, FITNESS
+
+    params = config["params"]
+    params["c_mut_odds"] = config["c"]
+    params["m_mut_odds"] = config["m"]
+    params["f_mut_odds"] = config["f"]
+    params["first_layer"] = config["layer1"]
+    params["second_layer"] = config["layer2"]
+    params["third_layer"] = config["layer3"]
     
     while (FITNESS < 750): # Training loop
         GENERATION += 1
@@ -251,16 +274,36 @@ if __name__ == '__main__':
     pygame.font.init()
     parser = argparse.ArgumentParser()
     params = init_params()
-    parser.add_argument("--display", nargs='?', type=distutils.util.strtobool, default=True)
+    parser.add_argument("--display", nargs='?', type=distutils.util.strtobool, default=False)
     parser.add_argument("--speed", nargs='?', type=int, default=0)
     args = parser.parse_args()
     print("Args", args)
     params['display'] = args.display
     params['speed'] = args.speed
-    if(params["train"]):
+    '''if(params["train"]):
         train(params)
     else:
-        test(params)
+        test(params)'''
+
+    ### RAY TUNE SETUP ###
+    search_space = {
+        "c": tune.uniform(0, 0.10),
+        "m": tune.uniform(0, 0.10),
+        "f": tune.uniform(0, 0.10),
+        "layer1": tune.randint(4, 14),
+        "layer2": tune.randint(3, 13),
+        "layer3": tune.randint(2, 12),
+        "params": params
+    }
+
+    ray.init(num_cpus=12, num_gpus=0, ignore_reinit_error=True)
+    tuner = tune.Tuner(train, param_space=search_space, tune_config=TuneConfig(scheduler=ASHAScheduler(), metric="fitness", mode="max", num_samples=120, chdir_to_trial_dir=False))
+
+    ### RAY RESULTS
+    results = tuner.fit()
+    best_results = results.get_best_result()
+    print("RESULTS\n", results)
+    print("\nBEST RESULT\n", best_results)
 
     end_time = time.time()
     print("Time ended")

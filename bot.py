@@ -109,9 +109,9 @@ class HaptyBaby():
     def set_weights(self, params):
         if (self.first_gen):
             ### RANDOM WEIGHTS ###
-            self.chromosome_1 = np.random.normal(0, scale= 1, size=(7, 5))
-            self.chromosome_2 = np.random.normal(0, scale= 1, size=(5, 3))
-            self.chromosome_3 = np.random.normal(0, scale= 1, size=(3, 1))
+            self.chromosome_1 = np.random.normal(0, scale= 1, size=(params["first_layer"], params["second_layer"]))
+            self.chromosome_2 = np.random.normal(0, scale= 1, size=(params["second_layer"], params["third_layer"]))
+            self.chromosome_3 = np.random.normal(0, scale= 1, size=(params["third_layer"], 1))
             
             ### BEST WEIGHTS FROM 3px GATE TEST #
             '''self.chromosome_1 = [[ 0.46093351,  0.76599756,  0.51725556, -1.27992041, -1.73067638],
@@ -140,9 +140,9 @@ class HaptyBaby():
 
         if (self.child):
             # Begin with random weights and then breed
-            self.chromosome_1 = np.random.normal(0, scale= 1, size=(7, 5))
-            self.chromosome_2 = np.random.normal(0, scale= 1, size=(5, 3))
-            self.chromosome_3 = np.random.normal(0, scale= 1, size=(3, 1))
+            self.chromosome_1 = np.random.normal(0, scale= 1, size=(params["first_layer"], params["second_layer"]))
+            self.chromosome_2 = np.random.normal(0, scale= 1, size=(params["second_layer"], params["third_layer"]))
+            self.chromosome_3 = np.random.normal(0, scale= 1, size=(params["third_layer"], 1))
             self.breed()
             self.mutate(params["c_mut_odds"])
 
