@@ -30,7 +30,7 @@ def init_params():
     params["game_height"] = 270
     params["cursor_y"] = np.floor(params["game_height"] - 5)
     params["gate_size"] = 3
-    params["num_generations"] = 256
+    params["num_generations"] = 128
     params["c_mut_odds"] = 0.06718772399427941
     params["m_mut_odds"] = 0.047894877742536146
     params["f_mut_odds"] = 0.09902455284411923
@@ -74,14 +74,43 @@ def render(params):
     surface.blit(local_fitness_lvl, (180 - 50,30))
     
     for i in WALLS:
+        # Left wall
         pygame.draw.rect(surface, "red", (
             0, # Begin at x = 0
             i.y, # y = y
-            i.left, # x = left side of gate
+            i.left_gate[0], # x = left side of left gate
             3 # Arbitrary height
         ))
+        # Left gate
+        if(i.left_gate[2]):
+            left_color = "green"
+            right_color = "blue"
+        else:
+            left_color = "blue"
+            right_color = "green"
+        pygame.draw.rect(surface, left_color, (
+            i.left_gate[0], # Begin at x = 0
+            i.y, # y = y
+            i.left_gate[1], # x = left side of left gate
+            3 # Arbitrary height
+        ))
+        # Center wall
         pygame.draw.rect(surface, "red", (
-            i.right, # x = right side of gate
+            i.left_gate[1], # x = right side of gate
+            i.y, # y = y
+            i.right_gate[0], # x = right side of game
+            3 # Arbitrary height
+        ))
+        # Right gate
+        pygame.draw.rect(surface, right_color, (
+            i.right_gate[0], # Begin at x = 0
+            i.y, # y = y
+            i.right_gate[1], # x = left side of left gate
+            3 # Arbitrary height
+        ))
+        # Right wall
+        pygame.draw.rect(surface, "red", (
+            i.right_gate[1], # x = right side of gate
             i.y, # y = y
             params["game_width"], # x = right side of game
             3 # Arbitrary height
@@ -109,12 +138,12 @@ def train(params): # Runs the game
 
         # Breed
         for i in range(0, len(BOTS_TO_BREED) - 1):
-            CURSORS.append(HaptyBaby(child=True, parent1=BOTS_TO_BREED[i], parent2=BOTS_TO_BREED[i + 1]))
+            CURSORS.append(HaptyBaby(params, child=True, parent1=BOTS_TO_BREED[i], parent2=BOTS_TO_BREED[i + 1]))
 
         # Copy and Mutate
         for i in range(0, len(BOTS_TO_BREED)):
             CURSORS.append(BOTS_TO_BREED[i])
-            CURSORS.append(HaptyBaby(mutant=True, parent1=BOTS_TO_BREED[i]))
+            CURSORS.append(HaptyBaby(params, mutant=True, parent1=BOTS_TO_BREED[i]))
 
         while(len(CURSORS) > params["num_generations"]):
             CURSORS.pop(0)
@@ -127,7 +156,8 @@ def train(params): # Runs the game
 
         ### GAME ###
         while(RUNNING): # Game loop
-    
+            bots_to_breed = []
+
             if(not len(WALLS)):
                 WALLS.append(Wall(params))
             else:
@@ -146,13 +176,17 @@ def train(params): # Runs the game
             for w in WALLS:
                 if (w.update_y(params)):
                     RUNNING = False
-                    BOTS_TO_BREED = []
+                    bots_to_breed = []
                     for i, c in enumerate(CURSORS):
                         c.collision(w)
                         if (c.alive):
                             RUNNING = True
-                            BOTS_TO_BREED.append(c)
+                            bots_to_breed.append(c)
                         else:
+                            for j in bots_to_breed:
+                                while(len(BOTS_TO_BREED) >= 48):
+                                    BOTS_TO_BREED.pop(0)
+                                BOTS_TO_BREED.append(j)
                             CURSORS.pop(i)
 
             if(WALLS[0].y > params["cursor_y"]):
