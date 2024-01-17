@@ -31,9 +31,9 @@ def init_params():
     params["cursor_y"] = np.floor(params["game_height"] - 5)
     params["gate_size"] = 3
     params["num_generations"] = 128
-    params["c_mut_odds"] = 0.06718772399427941
-    params["m_mut_odds"] = 0.047894877742536146
-    params["f_mut_odds"] = 0.09902455284411923
+    params["c_mut_odds"] = 0.011905250442820692#0.06718772399427941
+    params["m_mut_odds"] = 0.008419509346686838#0.047894877742536146
+    params["f_mut_odds"] = 0.05969429389680664#0.09902455284411923
     params["train"] = True
     surface = pygame.display.set_mode((params["game_width"], params["game_height"]))
     return params
