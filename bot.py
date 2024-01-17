@@ -63,12 +63,12 @@ class HaptyBaby():
         self.dist_y = self.y - wall.y
         self.fitness += 0.01
 
-        if(self.fitness >= 500):
+        '''if(self.fitness >= 500):
             print("FITNESS:", self.fitness)
             print("CHROMOSOME 1:", self.chromosome_1)
             print("CHROMOSOME 2:", self.chromosome_2)
             print("CHROMOSOME 3:", self.chromosome_3)
-
+'''
     def collision(self, wall):
         if(self.gate_choice == wall.left_gate[2]):
             if(self.x > wall.left_gate[0] and self.x < wall.left_gate[1]):
@@ -109,7 +109,7 @@ class HaptyBaby():
     def set_weights(self, params):
         if (self.first_gen):
             ### RANDOM WEIGHTS ###
-            self.chromosome_1 = np.random.normal(0, scale= 1, size=(params["first_layer"], params["second_layer"]))
+            self.chromosome_1 = np.random.normal(0, scale= 1, size=(7, params["second_layer"]))
             self.chromosome_2 = np.random.normal(0, scale= 1, size=(params["second_layer"], params["third_layer"]))
             self.chromosome_3 = np.random.normal(0, scale= 1, size=(params["third_layer"], 1))
             
@@ -140,7 +140,7 @@ class HaptyBaby():
 
         if (self.child):
             # Begin with random weights and then breed
-            self.chromosome_1 = np.random.normal(0, scale= 1, size=(params["first_layer"], params["second_layer"]))
+            self.chromosome_1 = np.random.normal(0, scale= 1, size=(7, params["second_layer"]))
             self.chromosome_2 = np.random.normal(0, scale= 1, size=(params["second_layer"], params["third_layer"]))
             self.chromosome_3 = np.random.normal(0, scale= 1, size=(params["third_layer"], 1))
             self.breed()
