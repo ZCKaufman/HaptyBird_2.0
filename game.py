@@ -46,6 +46,9 @@ def init_params():
     params["second_layer"] = 0
     params["third_layer"] = 0
     params["fourth_layer"] = 0
+    params["act1"] = 0
+    params["act2"] = 0
+    params["act3"] = 0
 
     params["train"] = True
     #surface = pygame.display.set_mode((params["game_width"], params["game_height"]))
@@ -149,8 +152,11 @@ def train(config): # Runs the game
     #params["first_layer"] = config["layer1"]
     params["second_layer"] = config["layer2"]
     params["third_layer"] = config["layer3"]
+    params["act1"] = config["act1"]
+    params["act2"] = config["act2"]
+    params["act3"] = config["act3"]
     
-    while (FITNESS < 1000 and GENERATION < 500): # Training loop
+    while (FITNESS < 1000 and GENERATION < 400): # Training loop
         GENERATION += 1
 
         # Check if the game has been ended by user
@@ -295,11 +301,14 @@ if __name__ == '__main__':
         #"layer1": tune.randint(7, 12),
         "layer2": tune.randint(4, 7),
         "layer3": tune.randint(2, 4),
+        "act1": tune.randint(0, 2),
+        "act2": tune.randint(0, 2),
+        "act3": tune.randint(0, 2),
         "params": params
     }
 
-    ray.init(num_cpus=24, num_gpus=0, ignore_reinit_error=True)
-    tuner = tune.Tuner(train, param_space=search_space, tune_config=TuneConfig(scheduler=ASHAScheduler(), metric="fitness", mode="max", num_samples=120, reuse_actors=False, chdir_to_trial_dir=False))
+    ray.init(num_cpus=30, num_gpus=2, ignore_reinit_error=True)
+    tuner = tune.Tuner(train, param_space=search_space, tune_config=TuneConfig(scheduler=ASHAScheduler(), metric="fitness", mode="max", num_samples=360, reuse_actors=False, chdir_to_trial_dir=False))
 
     ### RAY RESULTS
     results = tuner.fit()

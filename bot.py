@@ -90,11 +90,20 @@ class HaptyBaby():
         state = [self.x, self.dist_c_gate_l, self.dist_c_gate_r, self.dist_o_gate_l, self.dist_o_gate_r, self.dist_y, self.prev_move]
 
         layer1 = np.dot(state, self.chromosome_1)
-        layer1_a = self.tanh(layer1)
+        if(params["act1"]):
+            layer1_a = self.tanh(layer1)
+        else:
+            layer1_a = self.sigmoid(layer1)
         layer2 = np.dot(layer1_a, self.chromosome_2)
-        layer2_a = self.tanh(layer2)
+        if(params["act2"]):
+            layer2_a = self.tanh(layer2)
+        else:
+            layer2_a = self.sigmoid(layer2)
         layer3 = np.dot(layer2_a, self.chromosome_3)
-        prediction = self.sigmoid(layer3)
+        if(params["act3"]):
+            prediction = self.tanh(layer3)
+        else:
+            prediction = self.sigmoid(layer3)
 
         if (prediction < 0.33 and self.x > 0):
             self.x -= 1
