@@ -63,12 +63,6 @@ class HaptyBaby():
         self.dist_y = self.y - wall.y
         self.fitness += 0.01
 
-        if(self.fitness >= 500):
-            print("FITNESS:", self.fitness)
-            print("CHROMOSOME 1:", self.chromosome_1)
-            print("CHROMOSOME 2:", self.chromosome_2)
-            print("CHROMOSOME 3:", self.chromosome_3)
-
     def collision(self, wall):
         if(self.gate_choice == wall.left_gate[2]):
             if(self.x > wall.left_gate[0] and self.x < wall.left_gate[1]):
@@ -90,11 +84,11 @@ class HaptyBaby():
         state = [self.x, self.dist_c_gate_l, self.dist_c_gate_r, self.dist_o_gate_l, self.dist_o_gate_r, self.dist_y, self.prev_move]
 
         layer1 = np.dot(state, self.chromosome_1)
-        layer1_a = self.tanh(layer1)
+        layer1_a = self.sigmoid(layer1)
         layer2 = np.dot(layer1_a, self.chromosome_2)
         layer2_a = self.tanh(layer2)
         layer3 = np.dot(layer2_a, self.chromosome_3)
-        prediction = self.sigmoid(layer3)
+        prediction = self.tanh(layer3)
 
         if (prediction < 0.33 and self.x > 0):
             self.x -= 1
@@ -109,26 +103,25 @@ class HaptyBaby():
     def set_weights(self, params):
         if (self.first_gen):
             ### RANDOM WEIGHTS ###
-            self.chromosome_1 = np.random.normal(0, scale= 1, size=(7, 5))
-            self.chromosome_2 = np.random.normal(0, scale= 1, size=(5, 3))
+            self.chromosome_1 = np.random.normal(0, scale= 1, size=(7, 4))
+            self.chromosome_2 = np.random.normal(0, scale= 1, size=(4, 3))
             self.chromosome_3 = np.random.normal(0, scale= 1, size=(3, 1))
             
-            ### BEST WEIGHTS FROM 3px GATE TEST #
-            '''self.chromosome_1 = [[ 0.46093351,  0.76599756,  0.51725556, -1.27992041, -1.73067638],
-                                [-0.47011362, -0.68811518, -0.13676006, -0.06401243,  0.67630845],
-                                [-0.29447367, -0.09740023,  0.36656525,  1.09661885,  0.23134315],
-                                [-1.46634215, -1.09772655,  1.18300407,  0.50472777,  1.11807935],
-                                [-0.82736888,  1.16051323,  0.65782399,  0.16305401, -0.88351831],
-                                [-0.72433429, -0.96959554, -0.03757411,  0.15349503,  0.13077109],
-                                [-0.03411067,  1.3594317,  -0.37795948,  0.49874281,  1.79486994]]
-            self.chromosome_2 = [[ 0.06682074,  2.05700841,  0.39529383],
-                                [ 2.69949168,  0.6734257,   1.95217545],
-                                [ 0.51488829, -0.84409397, -0.27587867],
-                                [ 1.32181397, -1.25127511,  1.32413136],
-                                [ 2.29900897, -0.43436434, -1.83066862]]
-            self.chromosome_3 = [[ 1.47157547],
-            [ 1.2740228 ],
-            [-2.60040346]]'''
+            ### TRAINING FITNESS: 1009 ###
+            self.chromosome_1 = [[-0.92148665, -0.23553288,  0.44194526,  0.09557647],
+                                [ 0.59440088, -0.20850433,  0.24583252, -0.11288839],
+                                [ 0.30974749, -1.8089996,  -0.11197085, -1.58302531],
+                                [ 1.17229571, -1.76032062, -0.6768214,   1.10583117],
+                                [-1.11081763,  0.00181581, -0.25293454, -0.64954628],
+                                [ 0.1679029,  -1.46880369, -0.05118849,  0.13350591],
+                                [ 1.43222392,  0.57719087, -0.37262667,  0.24279165]]
+            self.chromosome_2 = [[ 0.19318451, -0.98730919,  1.8579208 ],
+                                [ 0.23655605, -0.11907344,  0.40067307],
+                                [ 0.02929237, -1.18927003,  0.08036668],
+                                [-1.53253219,  0.84234783, -1.27203394]]
+            self.chromosome_3 = [[ 0.00739505],
+                                [-0.67613845],
+                                [ 1.33630041]]
             if(params["train"]):
                 self.mutate(params["f_mut_odds"])
 
@@ -140,8 +133,8 @@ class HaptyBaby():
 
         if (self.child):
             # Begin with random weights and then breed
-            self.chromosome_1 = np.random.normal(0, scale= 1, size=(7, 5))
-            self.chromosome_2 = np.random.normal(0, scale= 1, size=(5, 3))
+            self.chromosome_1 = np.random.normal(0, scale= 1, size=(7, 4))
+            self.chromosome_2 = np.random.normal(0, scale= 1, size=(4, 3))
             self.chromosome_3 = np.random.normal(0, scale= 1, size=(3, 1))
             self.breed()
             self.mutate(params["c_mut_odds"])

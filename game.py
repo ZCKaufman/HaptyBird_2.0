@@ -31,9 +31,9 @@ def init_params():
     params["cursor_y"] = np.floor(params["game_height"] - 5)
     params["gate_size"] = 3
     params["num_generations"] = 128
-    params["c_mut_odds"] = 0.011905250442820692#0.06718772399427941
-    params["m_mut_odds"] = 0.008419509346686838#0.047894877742536146
-    params["f_mut_odds"] = 0.05969429389680664#0.09902455284411923
+    params["c_mut_odds"] = 0.0274#0.011905250442820692#0.06718772399427941
+    params["m_mut_odds"] = 0.0025#0.008419509346686838#0.047894877742536146
+    params["f_mut_odds"] = 0.0813#0.05969429389680664#0.09902455284411923
     params["train"] = True
     surface = pygame.display.set_mode((params["game_width"], params["game_height"]))
     return params
@@ -49,17 +49,17 @@ def render(params):
     num_generations = font.render(str(GENERATION), True, (255,255,255))
     max_fit_txt = font_bold.render("MAX FITNESS:", True, (255,255,255))
     max_fit = font.render(str(FITNESS), True, (255,255,255))
-    score = font_bold.render("SCORE:", True, (255,255,255))
-    bot_score = font.render(str(CURSORS[-1].score), True, (255,255,255))
+    #score = font_bold.render("SCORE:", True, (255,255,255))
+    #bot_score = font.render(str(CURSORS[-1].score), True, (255,255,255))
 
     surface.blit(generations, (5,10))
     surface.blit(num_generations, (180 - 50,10))
     if(params["train"]):
         surface.blit(max_fit_txt, (5,20))
         surface.blit(max_fit, (180 - 50,20))
-    else:
-        surface.blit(score, (5,20))
-        surface.blit(bot_score, (180 - 50,20))
+    #else:
+    #    surface.blit(score, (5,20))
+    #    surface.blit(bot_score, (180 - 50,20))
         
     for i in CURSORS:
         if i.fitness > current_fit:
@@ -127,7 +127,7 @@ def train(params): # Runs the game
     pygame.init()
     global RUNNING, GENERATION, BOTS_TO_BREED, FITNESS
     
-    while (FITNESS < 750): # Training loop
+    while (FITNESS < 1750): # Training loop
         GENERATION += 1
 
         # Check if the game has been ended by user
@@ -170,6 +170,11 @@ def train(params): # Runs the game
                 if c.fitness > FITNESS:# and c.fitness > 25:
                     FITNESS = c.fitness
                     #PRIZE_BOTS.append(c)
+
+                    print("FITNESS:", c.fitness)
+                    print("CHROMOSOME 1:", c.chromosome_1)
+                    print("CHROMOSOME 2:", c.chromosome_2)
+                    print("CHROMOSOME 3:", c.chromosome_3)
                 c.update_state(WALLS[0])
                 c.move(params)
             
@@ -251,7 +256,7 @@ if __name__ == '__main__':
     pygame.font.init()
     parser = argparse.ArgumentParser()
     params = init_params()
-    parser.add_argument("--display", nargs='?', type=distutils.util.strtobool, default=True)
+    parser.add_argument("--display", nargs='?', type=distutils.util.strtobool, default=False)
     parser.add_argument("--speed", nargs='?', type=int, default=0)
     args = parser.parse_args()
     print("Args", args)
