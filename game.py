@@ -129,7 +129,8 @@ def train(params): # Runs the game
     
     while (FITNESS < 1750): # Training loop
         GENERATION += 1
-
+        if(GENERATION % 50 == 0):
+            print(GENERATION, FITNESS)
         # Check if the game has been ended by user
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -171,10 +172,10 @@ def train(params): # Runs the game
                     FITNESS = c.fitness
                     #PRIZE_BOTS.append(c)
 
-                    print("FITNESS:", c.fitness)
-                    print("CHROMOSOME 1:", c.chromosome_1)
-                    print("CHROMOSOME 2:", c.chromosome_2)
-                    print("CHROMOSOME 3:", c.chromosome_3)
+                    # print("FITNESS:", c.fitness)
+                    # print("CHROMOSOME 1:", c.chromosome_1)
+                    # print("CHROMOSOME 2:", c.chromosome_2)
+                    # print("CHROMOSOME 3:", c.chromosome_3)
                 c.update_state(WALLS[0])
                 c.move(params)
             
@@ -207,12 +208,8 @@ def test(params):
     while (FITNESS < 750): # Training loop
         GENERATION += 1
 
-        while(len(CURSORS) > params["num_generations"]):
-            CURSORS.pop(0)
-
-        # Mutation rate of 5, can go as high as 10, but goal is to get down to 1%
-        for i in range(len(CURSORS), params["num_generations"]):
-            CURSORS.append(HaptyBaby(params))
+        CURSORS.append(HaptyBaby(params, gate_choice=0))
+        CURSORS.append(HaptyBaby(params, gate_choice=1))
 
         RUNNING = True
 

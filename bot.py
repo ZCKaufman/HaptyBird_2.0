@@ -9,7 +9,7 @@ import random
 from random import randint
 
 class HaptyBaby():
-    def __init__(self, params, first_gen = True, mutant = False, child = False, parent1 = None, parent2 = None):
+    def __init__(self, params, first_gen = True, mutant = False, child = False, parent1 = None, parent2 = None, gate_choice = 1):
         ### INPUT: Params
         ### OUTPUT: None
         ### DESCRIPTION: Generates a baby bot. Could be a first generation, mutant, or child
@@ -36,7 +36,7 @@ class HaptyBaby():
         self.dist_right = 0
         self.dist_y = 0
         self.passed = 0
-        self.gate_choice = 1
+        self.gate_choice = gate_choice
 
         # GAME STATISTICS #
         self.score = 0
@@ -61,7 +61,24 @@ class HaptyBaby():
             self.dist_o_gate_l = wall.left_gate[0]
             self.dist_o_gate_r = wall.left_gate[1]
         self.dist_y = self.y - wall.y
-        self.fitness += 0.01
+        if(self.gate_choice == wall.left_gate[2]):
+            if(self.x > wall.left_gate[0] and self.x < wall.left_gate[1]):
+                self.fitness += 0.01 # Reward for being in the right spot
+            elif(self.x > wall.right_gate[0] and self.x < wall.right_gate[1]):
+                self.fitness = self.fitness # No change in fitness for being within the wrong gate range
+            else:
+                self.fitness -= 0.01 # Neg reward for being in the wrong spot
+        else:
+            if(self.x > wall.right_gate[0] and self.x < wall.right_gate[1]):
+                self.fitness += 0.01 # Reward for being in the right spot
+            elif(self.x > wall.left_gate[0] and self.x < wall.left_gate[1]):
+                self.fitness = self.fitness # No change in fitness for being within the wrong gate range
+            else:
+                self.fitness -= 0.01 # Neg reward for being in the wrong spot
+        if(self.fitness > 500):
+            print("1:", str(self.chromosome_1))
+            print("2:", str(self.chromosome_2))
+            print("3:", str(self.chromosome_3))
 
     def collision(self, wall):
         if(self.gate_choice == wall.left_gate[2]):
@@ -102,26 +119,26 @@ class HaptyBaby():
 
     def set_weights(self, params):
         if (self.first_gen):
-            ### RANDOM WEIGHTS ###
+                ### RANDOM WEIGHTS ###
             self.chromosome_1 = np.random.normal(0, scale= 1, size=(7, 4))
             self.chromosome_2 = np.random.normal(0, scale= 1, size=(4, 3))
             self.chromosome_3 = np.random.normal(0, scale= 1, size=(3, 1))
+            ### TRAINING FITNESS: 1750 ###
             
-            ### TRAINING FITNESS: 1009 ###
-            self.chromosome_1 = [[-0.92148665, -0.23553288,  0.44194526,  0.09557647],
-                                [ 0.59440088, -0.20850433,  0.24583252, -0.11288839],
-                                [ 0.30974749, -1.8089996,  -0.11197085, -1.58302531],
-                                [ 1.17229571, -1.76032062, -0.6768214,   1.10583117],
-                                [-1.11081763,  0.00181581, -0.25293454, -0.64954628],
-                                [ 0.1679029,  -1.46880369, -0.05118849,  0.13350591],
-                                [ 1.43222392,  0.57719087, -0.37262667,  0.24279165]]
-            self.chromosome_2 = [[ 0.19318451, -0.98730919,  1.8579208 ],
-                                [ 0.23655605, -0.11907344,  0.40067307],
-                                [ 0.02929237, -1.18927003,  0.08036668],
-                                [-1.53253219,  0.84234783, -1.27203394]]
-            self.chromosome_3 = [[ 0.00739505],
-                                [-0.67613845],
-                                [ 1.33630041]]
+            # self.chromosome_1 = [[-0.83255689, -0.24677735,  0.7521962,   0.64078756],
+            #                     [ 0.42143726,  0.25700747,  0.47326644,  0.22223561],
+            #                     [ 0.41761297, -1.59884992,  0.34140426, -1.14388084],
+            #                     [ 1.18319561,-1.33439961, -0.52975154,  1.46716971],
+            #                     [-1.1744866,   0.34043304, -0.07638435, -0.44695094],
+            #                     [ 0.84053683, -1.09521061,  0.09475642,  0.52785842],
+            #                     [ 1.61743526,  0.8425844,   0.22686693,  0.6618548 ]]
+            # self.chromosome_2 = [[ 0.49058185, -0.7131381,   2.35006918],
+            #                     [ 0.49573697, 0.11144374,  0.41243955],
+            #                     [ 0.43183828, -0.91827516,  0.51124984],
+            #                     [-1.18493213,  1.07524469, -0.96786005]]
+            # self.chromosome_3 = [[ 0.09001661],
+            #                     [-0.44033626],
+            #                     [ 1.71977779]]
             if(params["train"]):
                 self.mutate(params["f_mut_odds"])
 
@@ -187,7 +204,7 @@ class HaptyBaby():
             for j in range(len(self.chromosome_3[i])):
                 self.chromosome_3[i][j] = (self.parent1.chromosome_3[i][j] + self.parent2.chromosome_3[i][j]) / 2
 
-        self.fitness = (self.parent1.fitness + self.parent2.fitness) / 2
+        self.fitness = 0#(self.parent1.fitness + self.parent2.fitness) / 2
         
     def sigmoid(self, state):
         return 1 / (1 + np.exp(-state))
