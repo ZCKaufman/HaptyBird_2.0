@@ -64,17 +64,17 @@ class HaptyBaby():
         if(self.gate_choice == wall.left_gate[2]):
             if(self.x > wall.left_gate[0] and self.x < wall.left_gate[1]):
                 self.fitness += 0.01 # Reward for being in the right spot
-            elif(self.x > wall.right_gate[0] and self.x < wall.right_gate[1]):
-                self.fitness = self.fitness # No change in fitness for being within the wrong gate range
-            else:
-                self.fitness -= 0.01 # Neg reward for being in the wrong spot
+            #elif(self.x > wall.right_gate[0] and self.x < wall.right_gate[1]):
+            #    self.fitness = self.fitness # No change in fitness for being within the wrong gate range
+            #else:
+            #    self.fitness -= 0.01 # Neg reward for being in the wrong spot
         else:
             if(self.x > wall.right_gate[0] and self.x < wall.right_gate[1]):
                 self.fitness += 0.01 # Reward for being in the right spot
-            elif(self.x > wall.left_gate[0] and self.x < wall.left_gate[1]):
-                self.fitness = self.fitness # No change in fitness for being within the wrong gate range
-            else:
-                self.fitness -= 0.01 # Neg reward for being in the wrong spot
+            #elif(self.x > wall.left_gate[0] and self.x < wall.left_gate[1]):
+            #    self.fitness = self.fitness # No change in fitness for being within the wrong gate range
+            #else:
+            #    self.fitness -= 0.01 # Neg reward for being in the wrong spot
         if(self.fitness > 500):
             print("1:", str(self.chromosome_1))
             print("2:", str(self.chromosome_2))
