@@ -18,7 +18,6 @@ BOTS_TO_BREED = []
 GENERATION = 0
 FITNESS = 0
 RUNNING = True
-pygame.display.set_caption("HaptyBird 3.0")
 surface = None
 
 def init_params():
@@ -35,7 +34,6 @@ def init_params():
     params["m_mut_odds"] = 0.0025#0.008419509346686838#0.047894877742536146
     params["f_mut_odds"] = 0.0813#0.05969429389680664#0.09902455284411923
     params["train"] = True
-    surface = pygame.display.set_mode((params["game_width"], params["game_height"]))
     return params
 
 def render(params):
@@ -253,12 +251,17 @@ if __name__ == '__main__':
     pygame.font.init()
     parser = argparse.ArgumentParser()
     params = init_params()
-    parser.add_argument("--display", nargs='?', type=distutils.util.strtobool, default=False)
-    parser.add_argument("--speed", nargs='?', type=int, default=0)
+    parser.add_argument("--display", nargs='?', type=distutils.util.strtobool, default=True)
+    parser.add_argument("--speed", nargs='?', type=int, default=1)
     args = parser.parse_args()
     print("Args", args)
     params['display'] = args.display
     params['speed'] = args.speed
+
+    if(params["display"]):
+        pygame.display.set_caption("HaptyBird 3.0")
+        surface = pygame.display.set_mode((params["game_width"], params["game_height"]))
+
     if(params["train"]):
         train(params)
     else:

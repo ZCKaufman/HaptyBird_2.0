@@ -9,7 +9,7 @@ import random
 from random import randint
 
 class HaptyBaby():
-    def __init__(self, params, first_gen = True, mutant = False, child = False, parent1 = None, parent2 = None, gate_choice = 1):
+    def __init__(self, params, first_gen = True, mutant = False, child = False, parent1 = None, parent2 = None, gate_choice = 0):
         ### INPUT: Params
         ### OUTPUT: None
         ### DESCRIPTION: Generates a baby bot. Could be a first generation, mutant, or child
@@ -44,12 +44,6 @@ class HaptyBaby():
         self.set_weights(params)
 
     def update_state(self, wall):
-        '''if(self.gate_choice == wall.left_gate[2]):
-            self.dist_c_gate = wall.left_center - self.x
-            self.dist_o_gate = wall.right_center - self.x
-        else:
-            self.dist_c_gate = wall.right_center - self.x
-            self.dist_o_gate = wall.left_center - self.x'''
         if(self.gate_choice == wall.left_gate[2]):
             self.dist_c_gate_l = wall.left_gate[0]
             self.dist_c_gate_r = wall.left_gate[1]
@@ -64,31 +58,21 @@ class HaptyBaby():
         if(self.gate_choice == wall.left_gate[2]):
             if(self.x > wall.left_gate[0] and self.x < wall.left_gate[1]):
                 self.fitness += 0.01 # Reward for being in the right spot
-            #elif(self.x > wall.right_gate[0] and self.x < wall.right_gate[1]):
-            #    self.fitness = self.fitness # No change in fitness for being within the wrong gate range
-            #else:
-            #    self.fitness -= 0.01 # Neg reward for being in the wrong spot
         else:
             if(self.x > wall.right_gate[0] and self.x < wall.right_gate[1]):
                 self.fitness += 0.01 # Reward for being in the right spot
-            #elif(self.x > wall.left_gate[0] and self.x < wall.left_gate[1]):
-            #    self.fitness = self.fitness # No change in fitness for being within the wrong gate range
-            #else:
-            #    self.fitness -= 0.01 # Neg reward for being in the wrong spot
-        if(self.fitness > 500):
-            print("1:", str(self.chromosome_1))
-            print("2:", str(self.chromosome_2))
-            print("3:", str(self.chromosome_3))
+        if(self.fitness > 150):
+            print("-----------", self.fitness, "----------")
+            print("1:", self.chromosome_1)
+            print("2:", self.chromosome_2)
+            print("3:", self.chromosome_3)
+            print("-----------", self.fitness, "----------")
 
     def collision(self, wall):
         if(self.gate_choice == wall.left_gate[2]):
             if(self.x > wall.left_gate[0] and self.x < wall.left_gate[1]):
-                self.score += 1
-                self.fitness += 3
                 self.passed += 1
             elif(self.x > wall.right_gate[0] and self.x < wall.right_gate[1]):
-                self.score += .5
-                self.fitness += 1
                 self.passed += .5
             else:
                 self.score -= 1
@@ -97,7 +81,6 @@ class HaptyBaby():
 
     def move(self, params):
         # Set the inputs to state
-        #state = [self.x, self.dist_left, self.dist_right, self.dist_y, self.prev_move]
         state = [self.x, self.dist_c_gate_l, self.dist_c_gate_r, self.dist_o_gate_l, self.dist_o_gate_r, self.dist_y, self.prev_move]
 
         layer1 = np.dot(state, self.chromosome_1)
@@ -107,10 +90,10 @@ class HaptyBaby():
         layer3 = np.dot(layer2_a, self.chromosome_3)
         prediction = self.tanh(layer3)
 
-        if (prediction < 0.33 and self.x > 0):
+        if (prediction < -0.33 and self.x > 0):
             self.x -= 1
             self.prev_move = -1
-        elif (prediction > 0.66 and self.x < params["game_width"]):
+        elif (prediction > 0.33 and self.x < params["game_width"]):
             self.x += 1
             self.prev_move = 1
         else:
@@ -119,26 +102,28 @@ class HaptyBaby():
 
     def set_weights(self, params):
         if (self.first_gen):
+            rand_chance = random.random()
+            if(rand_chance < 0.0):
                 ### RANDOM WEIGHTS ###
-            self.chromosome_1 = np.random.normal(0, scale= 1, size=(7, 4))
-            self.chromosome_2 = np.random.normal(0, scale= 1, size=(4, 3))
-            self.chromosome_3 = np.random.normal(0, scale= 1, size=(3, 1))
-            ### TRAINING FITNESS: 1750 ###
-            
-            # self.chromosome_1 = [[-0.83255689, -0.24677735,  0.7521962,   0.64078756],
-            #                     [ 0.42143726,  0.25700747,  0.47326644,  0.22223561],
-            #                     [ 0.41761297, -1.59884992,  0.34140426, -1.14388084],
-            #                     [ 1.18319561,-1.33439961, -0.52975154,  1.46716971],
-            #                     [-1.1744866,   0.34043304, -0.07638435, -0.44695094],
-            #                     [ 0.84053683, -1.09521061,  0.09475642,  0.52785842],
-            #                     [ 1.61743526,  0.8425844,   0.22686693,  0.6618548 ]]
-            # self.chromosome_2 = [[ 0.49058185, -0.7131381,   2.35006918],
-            #                     [ 0.49573697, 0.11144374,  0.41243955],
-            #                     [ 0.43183828, -0.91827516,  0.51124984],
-            #                     [-1.18493213,  1.07524469, -0.96786005]]
-            # self.chromosome_3 = [[ 0.09001661],
-            #                     [-0.44033626],
-            #                     [ 1.71977779]]
+                self.chromosome_1 = np.random.normal(0, scale= 1, size=(7, 4))
+                self.chromosome_2 = np.random.normal(0, scale= 1, size=(4, 3))
+                self.chromosome_3 = np.random.normal(0, scale= 1, size=(3, 1))
+            ### TRAINING FITNESS: 210 ###
+            else:
+                self.chromosome_1 = [[ 1.73530077,  2.47868579,  1.20606162,  1.857809],
+                                    [-0.55773877,  0.89342955, -1.00407992, -0.03916429],
+                                    [-0.58612374,  0.28941589, -1.06137233,  0.17453236],
+                                    [-1.4362588,  -0.67199804,  0.41738395, -0.83101048],
+                                    [ 0.70089289,  0.37938383,  0.74253104, -1.15228495],
+                                    [ 0.06057514, -1.65373908,  1.18812516,  2.05190788],
+                                    [ 1.23858558,  0.61391846,  0.22784838,  0.68628033]]
+                self.chromosome_2 = [[ 0.16616632, -0.12397955, -2.24033337],
+                                    [-0.69633946,  2.2364728,   0.3751559 ],
+                                    [ 1.06409332,  0.54712497,  0.50106843],
+                                    [-0.72125204, -0.26966407,  0.16936832]]
+                self.chromosome_3 = [[1.85900397],
+                                    [1.07706974],
+                                    [1.32492735]]
             if(params["train"]):
                 self.mutate(params["f_mut_odds"])
 
